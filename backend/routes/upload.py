@@ -2,6 +2,8 @@ from fastapi import FastAPI, APIRouter, UploadFile, File
 import pandas as pd
 from backend.services.column_mapper import normalize_columns
 from backend.services.value_parser import parse_price
+from backend.services.column_detector import detect_column
+from backend.services.header_detector import detect_header_row
 
 # create router for upload endpoints
 router = APIRouter()
@@ -25,14 +27,20 @@ async def upload_excel(file: UploadFile = File(...)):
     # create empty list to store parsed values
     parsed_prices = []
     
-    # check if column exists in Excel (to avoid crash)
-    if "Payment Plan" in df.columns:
-       for value in df["Payment Plan"]:
-        # convert messy text → clean number
-        parsed_value = parse_price(value)
-        
-        # store result in list
-        parsed_prices.append(parsed_value)
+    # find the original excel column for price
+    price_column = detect_column(normalized_columns, "price_total")
+    
+    
+    # parse values only if a price column is found
+    if price_column:
+        # loop over each value in the detected column
+        for value in df[price_column]:
+           # convert messy text to clean number
+           parsed_value = parse_price(value)
+
+           # store result in list
+           parsed_prices.append(parsed_value)
+
         
     #return file metadata
     return{
