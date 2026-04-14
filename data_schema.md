@@ -1,0 +1,28 @@
+# Canonical Unit Schema
+
+- developer_name
+- compound_name
+- project_name
+- unit_type
+- bedrooms
+- bathrooms
+- area_m2
+- built_up_area_m2
+- garden_area_m2
+- terrace_area_m2
+- floor_number
+- finishing_status
+- price_total
+- down_payment
+- installment_years
+- monthly_installment
+- delivery_date
+- location
+- district
+- city
+- unit_status
+- source_file
+- source_sheet
+- raw_row_index
+- last_updated_at
+- notes
