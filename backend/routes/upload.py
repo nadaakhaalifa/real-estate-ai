@@ -1,6 +1,7 @@
 from fastapi import FastAPI, APIRouter, UploadFile, File
 import pandas as pd
 from backend.services.column_mapper import normalize_columns
+from backend.services.value_parser import parse_price
 
 # create router for upload endpoints
 router = APIRouter()
@@ -20,10 +21,24 @@ async def upload_excel(file: UploadFile = File(...)):
     # normalize column names
     normalized_columns = normalize_columns(df.columns)
     
+    # You are taking messy Excel values and converting them into usable numbers
+    # create empty list to store parsed values
+    parsed_prices = []
+    
+    # check if column exists in Excel (to avoid crash)
+    if "Payment Plan" in df.columns:
+       for value in df["Payment Plan"]:
+        # convert messy text → clean number
+        parsed_value = parse_price(value)
+        
+        # store result in list
+        parsed_prices.append(parsed_value)
+        
     #return file metadata
     return{
         "filename": file.filename,
         "rows": rows,
         "columns": columns,
-        "normalized_columns": normalized_columns
+        "normalized_columns": normalized_columns,
+        "parsed_prices_sample": parsed_prices[:5]  # just preview first 5
     }
