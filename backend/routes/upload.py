@@ -11,8 +11,14 @@ router = APIRouter()
 # API endpoint [post => send file]
 @router.post("/upload")
 async def upload_excel(file: UploadFile = File(...)):
-    #read excel into dataframe
-    df = pd.read_excel(file.file)
+    # detect correct header row
+    header_row = detect_header_row(file.file)
+
+    # reset file pointer (VERY IMPORTANT)
+    file.file.seek(0)
+
+    # read excel into dataframe with correct header
+    df = pd.read_excel(file.file, header=header_row)
     
     #count rows
     rows= len(df)
