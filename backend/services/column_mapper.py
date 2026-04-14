@@ -4,12 +4,69 @@ def normalize_columns(columns):
     mapping = {
         "developer": "developer_name",
         "project name": "compound_name",
+        
         "area": "location",
         "sub area": "district",
+        
         "delivery": "delivery_date",
         "finished": "finishing_status",
         "payment plan": "payment_plan",
-        "update date": "last_updated_at"
+        "update date": "last_updated_at",
+        "project": "compound_name",
+        "park": "compound_name",
+
+        "unit type": "unit_type",
+        "usage type": "unit_type",
+        "category": "unit_type",
+        "design type": "unit_type",
+
+        "unit code": "unit_code",
+        "unit id": "unit_code",
+        "unit name": "unit_code",
+        "unit #": "unit_code",
+
+        "unit price": "price_total",
+        "original price": "price_total",
+        "nominal price": "price_total",
+
+        "price/m2": "price_per_m2",
+        "indoor price per meter": "price_per_m2",
+        "outdoor price per meter": "outdoor_price_per_m2",
+        "covered terrace price per meter": "covered_terrace_price_per_m2",
+
+        "number of bedrooms": "bedrooms",
+        "no. of bedrooms": "bedrooms",
+
+        "built up area": "area_m2",
+        "builtup area": "area_m2",
+        "bua": "area_m2",
+
+        "garden area": "garden_area_m2",
+        "garden area (sq. m)": "garden_area_m2",
+
+        "roof area": "roof_area_m2",
+        "penthouse area": "roof_area_m2",
+
+        "total land area (sq. m)": "land_area_m2",
+        "land area": "land_area_m2",
+
+        "outdoor area": "outdoor_area_m2",
+        "covered terraces area": "covered_terrace_area_m2",
+
+        "floor": "floor_number",
+        "floor #": "floor_number",
+
+        "delivery year": "delivery_date",
+        "delivery status": "delivery_status",
+        "building status": "unit_status",
+        "unit status": "unit_status",
+
+        "finishing option": "finishing_status",
+
+        "phase": "phase",
+        "building": "building",
+        "buil#": "building",
+        "entrance": "entrance"
     }
     
     normalized ={}

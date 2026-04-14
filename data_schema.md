@@ -26,3 +26,20 @@
 - raw_row_index
 - last_updated_at
 - notes
+- Unit Price
+- Original Price
+- Nominal Price
+- Price/m2
+- Indoor Price per Meter
+- No. of Bedrooms
+- Number of Bedrooms
+- Built Up Area
+- Builtup Area
+- BUA
+- Garden Area
+- Roof Area
+- Project
+- Unit Type
+- Category
+- Floor
+- Delivery Year
