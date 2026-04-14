@@ -66,7 +66,27 @@ def normalize_columns(columns):
         "phase": "phase",
         "building": "building",
         "buil#": "building",
-        "entrance": "entrance"
+        "entrance": "entrance",
+        "grand total (pricing structure)": "price_total",
+        "total finishing price": "finishing_price",
+        "unit total with finishing price": "price_total_with_finishing",
+
+        "planned delivery date": "delivery_date",
+        "actual delivery date": "actual_delivery_date",
+
+        "built area  (pricing structure)": "area_m2",
+        "land area  (pricing structure)": "land_area_m2",
+        "roof area  (pricing structure)": "roof_area_m2",
+        "penthouse area  (pricing structure)": "penthouse_area_m2",
+        "semi covered roof area  (pricing structure)": "semi_covered_roof_area_m2",
+        "garden / outdoor area (pricing structure)": "outdoor_area_m2",
+        "garage area  (pricing structure)": "garage_area_m2",
+        "storage area  (pricing structure)": "storage_area_m2",
+        "extra builtup area  (pricing structure)": "extra_builtup_area_m2",
+
+        "stage": "stage",
+        "completion progress": "completion_progress",
+        "finishing specs": "finishing_status"
     }
     
     normalized ={}
