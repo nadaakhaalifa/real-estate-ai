@@ -4,6 +4,7 @@ from backend.services.column_mapper import normalize_columns
 from backend.services.value_parser import parse_price, parse_bedrooms, parse_area
 from backend.services.column_detector import detect_column
 from backend.services.header_detector import detect_header_row
+from backend.schemas import UnitPreview
 
 # create router for upload endpoints
 router = APIRouter()
@@ -29,48 +30,54 @@ async def upload_excel(file: UploadFile = File(...)):
     # normalize column names
     normalized_columns = normalize_columns(df.columns)
 
+    # parsed values
     parsed_prices = []
     parsed_bedrooms = []
     parsed_areas = []
     
-    # find the original excel column for bedrooms
+
+    # find original excel columns
     bedrooms_column = detect_column(normalized_columns, "bedrooms")
-    # find the original excel column for price
     price_column = detect_column(normalized_columns, "price_total")
-    # find the original excel column for area
     area_column = detect_column(normalized_columns, "area_m2")
     
     
-    # parse values only if a price column is found
+    # parse prices
     if price_column:
-        # loop over each value in the detected column
         for value in df[price_column]:
-           # convert messy text to clean number
            parsed_value = parse_price(value)
-
-           # store result in list
            parsed_prices.append(parsed_value)
 
-    # parse values only if a bedrooms column is found
+    # parse bedrooms
     if bedrooms_column:
-    # loop over each value in the detected column
         for value in df[bedrooms_column]:
-          # convert messy text to clean number
           parsed_value = parse_bedrooms(value)
-
-          # store result in list
           parsed_bedrooms.append(parsed_value)    
         
-    # parse values only if an area column is found
+    # parse areas
     if area_column:
-       # loop over each value in the detected column
        for value in df[area_column]:
-           # convert messy text to clean number
            parsed_value = parse_area(value)
-
-           # store result in list
            parsed_areas.append(parsed_value)
-         
+        
+        
+    # combine parsed values into preview objects
+    # "Take price + bedroom + area → combine into ONE object" 
+    unit_previews = []
+
+    # get max length between all lists
+    max_length = max(len(parsed_prices), len(parsed_bedrooms), len(parsed_areas), 0)
+
+    # build one preview object per index
+    for i in range(max_length):
+        unit = UnitPreview(
+             price_total=parsed_prices[i] if i < len(parsed_prices) else None,
+             bedrooms=parsed_bedrooms[i] if i < len(parsed_bedrooms) else None,
+             area_m2=parsed_areas[i] if i < len(parsed_areas) else None
+    )
+
+        unit_previews.append(unit.model_dump())   
+        
         
     #return file metadata
     return{
@@ -80,5 +87,6 @@ async def upload_excel(file: UploadFile = File(...)):
         "normalized_columns": normalized_columns,
         "parsed_prices_sample": parsed_prices[:5],  # just preview first 5
         "parsed_bedrooms_sample": parsed_bedrooms[:5],
-        "parsed_areas_sample": parsed_areas[:5]
+        "parsed_areas_sample": parsed_areas[:5],
+        "unit_previews_sample": unit_previews[:5]
     }
