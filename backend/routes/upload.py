@@ -122,6 +122,10 @@ async def upload_excel(file: UploadFile = File(...)):
         building = clean_text(row[building_column]) if building_column else None
         project_name = clean_text(row[project_column]) if project_column else None
         unit_code = clean_text(row[unit_code_column]) if unit_code_column else None
+        
+        # fallback: extract bedrooms from unit_type
+        if bedrooms is None and unit_type:
+            bedrooms = parse_bedrooms(unit_type)
 
         # skip completely empty rows
         if (
