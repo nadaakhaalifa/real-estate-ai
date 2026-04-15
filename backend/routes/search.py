@@ -10,10 +10,18 @@ router = APIRouter()
 @router.post("/search")
 def search(filters: SearchRequest):
     print("UNITS COUNT:", len(UNITS_DB))
-
-    parsed = parse_search_query(filters.query) if filters.query else {}
+    
+    if not UNITS_DB:
+        return {
+            "count": 0,
+            "results": [],
+            "message": "No units uploaded yet"
+        }
+    
+    parsed = parse_search_query(filters.query.strip()) if filters.query and filters.query.strip() else {}
     print("PARSED QUERY:", parsed)
-
+    
+    
     if parsed.get("max_price") is not None and filters.max_price is None:
         filters.max_price = parsed["max_price"]
 
@@ -28,6 +36,18 @@ def search(filters: SearchRequest):
 
     if parsed.get("unit_type") and not filters.unit_type:
         filters.unit_type = parsed["unit_type"]
+    
+    if parsed.get("developer_name") and not filters.developer_name:
+        filters.developer_name = parsed["developer_name"]
+
+    if parsed.get("stage") and not filters.stage:
+        filters.stage = parsed["stage"]
+    
+    if parsed.get("min_area") is not None and filters.min_area is None:
+        filters.min_area = parsed["min_area"]
+
+    if parsed.get("max_area") is not None and filters.max_area is None:
+        filters.max_area = parsed["max_area"]
 
     results = filter_units(
         UNITS_DB,
@@ -50,3 +70,4 @@ def search(filters: SearchRequest):
         "count": len(results),
         "results": results
     }
+    

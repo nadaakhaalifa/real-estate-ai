@@ -9,7 +9,11 @@ def parse_search_query(query: str):
     result = {
         "min_price": None,
         "max_price": None,
-        "bedrooms": None
+        "bedrooms": None,
+        "min_area": None,
+        "max_area": None,
+        "location": None,
+        "project_name": None,
     }
 
     if not query:
@@ -30,5 +34,15 @@ def parse_search_query(query: str):
     under_plain_match = re.search(r"(under|max)\s*(\d+)", text)
     if under_plain_match and result["max_price"] is None:
         result["max_price"] = int(under_plain_match.group(2))
+
+    # detect min area like over 120 sqm / min 150 sqm
+    min_area_match = re.search(r"(over|min)\s*(\d+\.?\d*)\s*(sqm|m2|sq m)", text)
+    if min_area_match:
+        result["min_area"] = float(min_area_match.group(2))
+
+    # detect max area like under 200 sqm / max 180 sqm
+    max_area_match = re.search(r"(under|max)\s*(\d+\.?\d*)\s*(sqm|m2|sq m)", text)
+    if max_area_match:
+        result["max_area"] = float(max_area_match.group(2))
 
     return result
