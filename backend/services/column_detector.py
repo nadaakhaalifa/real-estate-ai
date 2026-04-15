@@ -251,24 +251,6 @@ def _repetition_score(text_values):
     repeated_values = sum(1 for _, count in counts.items() if count > 1)
     return repeated_values
 
-def _looks_like_unit_code_value(value):
-    if value is None:
-        return False
-
-    text = str(value).strip().lower()
-    if not text:
-        return False
-
-    patterns = [
-        r"^[a-z0-9]+(?:-[a-z0-9]+)+$",
-        r"^[a-z]\d+-[a-z0-9]+-\d+$",
-        r"^[a-z0-9]{2,}-[a-z0-9]{1,}-[a-z0-9]{1,}$",
-        r"^[a-z0-9]{2,}-[a-z0-9]{2,}$",
-    ]
-
-    return any(re.fullmatch(pattern, text) for pattern in patterns)
-
-
 def _looks_like_project_name(value):
     if value is None:
         return False
@@ -316,15 +298,6 @@ def _looks_like_building_value(value):
     return any(re.search(pattern, text) for pattern in patterns)
 
 
-def _looks_like_short_code(value):
-    if value is None:
-        return False
-
-    text = str(value).strip().lower()
-    if not text:
-        return False
-
-    return bool(re.fullmatch(r"[a-z]\d*", text))
 
 def _looks_like_short_code(value):
     if value is None:
