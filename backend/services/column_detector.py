@@ -1,65 +1,143 @@
 import re
+from collections import Counter
 
 
-# score how likely a column matches a target field
 def score_column(column_name, sample_values, target_field):
-    name = str(column_name).lower()
-    values_text = " ".join([str(v).lower() for v in sample_values if v is not None])
+    name = str(column_name).lower().strip()
+    clean_values = [v for v in sample_values if v is not None]
+    text_values = [str(v).lower().strip() for v in clean_values if str(v).strip()]
 
     score = 0
 
     if target_field == "price_total":
-        keywords = ["price", "amount", "cost", "value", "inventory"]
-        for keyword in keywords:
-            if keyword in name:
-                score += 2
-
-        numeric_count = sum(1 for v in sample_values if _looks_numeric(v))
-        score += numeric_count
+        score += _score_name_keywords(name, ["price", "amount", "cost", "value", "inventory"], 2)
+        score += sum(1 for v in clean_values if _looks_numeric(v))
 
     elif target_field == "area_m2":
-        keywords = ["area", "bua", "sqm", "sq m", "size", "built up", "m2"]
-        for keyword in keywords:
-            if keyword in name:
-                score += 2
-
-        numeric_count = sum(1 for v in sample_values if _looks_numeric(v))
-        score += numeric_count
+        score += _score_name_keywords(name, ["area", "bua", "sqm", "sq m", "size", "built up", "m2"], 2)
+        score += sum(1 for v in clean_values if _looks_numeric(v))
 
     elif target_field == "bedrooms":
-        keywords = ["bed", "bedroom", "br", "room", "unit type", "type", "layout"]
-        for keyword in keywords:
-            if keyword in name:
-                score += 2
+        score += _score_name_keywords(name, ["bed", "bedroom", "br", "room"], 2)
+        score += sum(1 for v in clean_values if _looks_like_bedroom_value(v))
 
-        bedroom_pattern_count = sum(1 for v in sample_values if _looks_like_bedroom_value(v))
-        score += bedroom_pattern_count
+    elif target_field == "developer_name":
+        score += _score_name_keywords(name, ["developer", "company", "builder", "brand"], 5)
+        score += sum(2 for v in clean_values if _looks_like_company_name(v))
+        score += _repetition_score(text_values)
+
+        score -= sum(4 for v in clean_values if _looks_like_unit_type_value(v))
+        score -= sum(4 for v in clean_values if _looks_like_building_value(v))
+        score -= sum(4 for v in clean_values if _looks_like_unit_code_value(v))
+        score -= sum(3 for v in clean_values if _looks_like_short_code(v))
+        score -= sum(3 for v in clean_values if _looks_like_project_name(v))
+        score -= sum(2 for v in clean_values if _looks_numeric(v))
+    
+    elif target_field == "unit_type":
+        score += _score_name_keywords(name, ["unit type", "type", "layout", "model", "unit"], 3)
+        score += sum(3 for v in clean_values if _looks_like_unit_type_value(v))
+        score += sum(1 for v in clean_values if _looks_like_text(v))
+
+    elif target_field == "location":
+       score += _score_name_keywords(name, ["location", "district", "area", "city", "community"], 3)
+
+       score += sum(2 for v in clean_values if _looks_like_location_value(v))
+       score += sum(1 for v in clean_values if _looks_like_text(v))
+
+       score -= sum(4 for v in clean_values if _looks_like_unit_code_value(v))
+       score -= sum(3 for v in clean_values if _looks_like_short_code(v))
+       score -= sum(3 for v in clean_values if _looks_like_building_value(v))
+       score -= sum(2 for v in clean_values if _looks_numeric(v))
+
+    elif target_field == "stage":
+        score += _score_name_keywords(name, ["stage", "phase", "delivery", "delivery status"], 5)
+        score += sum(2 for v in clean_values if _looks_like_stage_value(v))
+
+        score -= sum(5 for v in clean_values if _looks_like_unit_code_value(v))
+        score -= sum(3 for v in clean_values if _looks_like_building_value(v))
+        score -= sum(2 for v in clean_values if _looks_like_short_code(v))
+        
+    elif target_field == "building":
+        score += _score_name_keywords(name, ["building", "building name", "block", "tower", "cluster", "bldg"], 6)
+
+        score += sum(4 for v in clean_values if _looks_like_building_value(v))
+        score += sum(2 for v in clean_values if _looks_like_short_code(v))
+
+        score -= sum(3 for v in clean_values if _looks_like_zone_value(v))
+        score -= sum(3 for v in clean_values if _looks_like_unit_code_value(v))
+        score -= sum(2 for v in clean_values if _looks_like_project_name(v))
+    
+    elif target_field == "project_name":
+        score += _score_name_keywords(name, ["project", "compound", "development"], 4)
+        score += sum(2 for v in clean_values if _looks_like_project_name(v))
+        score += sum(1 for v in clean_values if _looks_like_text(v))
+        score += _repetition_score(text_values)
+        score -= sum(2 for v in clean_values if _looks_like_unit_type_value(v))
+        score -= sum(2 for v in clean_values if _looks_like_building_value(v))
+        score -= sum(3 for v in clean_values if _looks_like_unit_code_value(v))
+
+    elif target_field == "unit_code":
+        score += _score_name_keywords(name, ["unit code", "unit id", "unit", "code", "record"], 5)
+        score += sum(5 for v in clean_values if _looks_like_unit_code_value(v))
+        score += sum(1 for v in clean_values if _looks_like_text(v))
+        score -= sum(2 for v in clean_values if _looks_like_unit_type_value(v))
 
     return score
 
 
-# detect the best matching column using name + sample values
-def detect_column(df, target_field):
+def detect_column(df, target_field, excluded_columns=None):
+    if excluded_columns is None:
+        excluded_columns = set()
+
     best_column = None
     best_score = -1
 
     for column in df.columns:
-        sample_values = df[column].dropna().head(10).tolist()
+        if column in excluded_columns:
+            continue
+
+        sample_values = df[column].dropna().head(20).tolist()
         score = score_column(column, sample_values, target_field)
 
         if score > best_score:
             best_score = score
             best_column = column
 
-    # avoid returning weak random matches
-    if best_score <= 0:
+    # field-specific confidence thresholds
+    min_score_by_field = {
+        "developer_name": 6,
+        "project_name": 5,
+        "building": 6,
+        "location": 7,
+        "stage": 6,
+        "unit_code": 5,
+        "unit_type": 4,
+        "price_total": 3,
+        "area_m2": 3,
+        "bedrooms": 3,
+    }
+
+    min_score = min_score_by_field.get(target_field, 1)
+
+    if best_column is None or best_score < min_score:
+        print(f"NO STRONG MATCH FOR {target_field} (best_score={best_score})")
         return None
 
     print(f"BEST COLUMN FOR {target_field}: {best_column} (score={best_score})")
     return best_column
 
 
-# check if a value looks numeric
+
+
+
+def _score_name_keywords(column_name, keywords, weight=2):
+    score = 0
+    for keyword in keywords:
+        if keyword in column_name:
+            score += weight
+    return score
+
+
 def _looks_numeric(value):
     if value is None:
         return False
@@ -68,7 +146,17 @@ def _looks_numeric(value):
     return bool(re.fullmatch(r"\d+(\.\d+)?", text))
 
 
-# check if a value looks like bedroom text
+def _looks_like_text(value):
+    if value is None:
+        return False
+
+    text = str(value).strip()
+    if not text:
+        return False
+
+    return not _looks_numeric(text)
+
+
 def _looks_like_bedroom_value(value):
     if value is None:
         return False
@@ -79,3 +167,231 @@ def _looks_like_bedroom_value(value):
         return True
 
     return bool(re.search(r"\d+\s*(bed|bedroom|bedrooms|br|bd|room)", text))
+
+
+def _looks_like_unit_type_value(value):
+    if value is None:
+        return False
+
+    text = str(value).lower().strip()
+    if not text:
+        return False
+
+    patterns = [
+        r"\bstudio\b",
+        r"\bapartment\b",
+        r"\bflat\b",
+        r"\bloft\b",
+        r"\bduplex\b",
+        r"\bpenthouse\b",
+        r"\bvilla\b",
+        r"\btownhouse\b",
+        r"\btwin house\b",
+        r"\bchalet\b",
+        r"\b\d+\s*(bed|bedroom|bedrooms|br)\b",
+        r"\btype\s*[a-z0-9]+\b",
+        r"\blayout\b",
+        r"\bunit\b",
+    ]
+
+    return any(re.search(pattern, text) for pattern in patterns)
+
+
+def _looks_like_location_value(value):
+    if value is None:
+        return False
+
+    text = str(value).lower().strip()
+    if not text:
+        return False
+
+    if _looks_numeric(text):
+        return False
+
+    if _looks_like_unit_code_value(text):
+        return False
+
+    if _looks_like_short_code(text):
+        return False
+
+    if _looks_like_building_value(text):
+        return False
+
+    # real locations are words, not codes
+    return len(text.split()) >= 1 and not bool(re.search(r"\d{2,}", text))
+
+def _looks_like_stage_value(value):
+    if value is None:
+        return False
+
+    text = str(value).lower().strip()
+    if not text:
+        return False
+
+    patterns = [
+        r"\bphase\b",
+        r"\bstage\b",
+        r"\bdelivery\b",
+        r"\bready\b",
+        r"\bunder construction\b",
+        r"\bfinished\b",
+        r"\bsemi finished\b",
+        r"\bcore and shell\b",
+        r"\b\d{4}\b",
+    ]
+
+    return any(re.search(pattern, text) for pattern in patterns)
+
+
+def _repetition_score(text_values):
+    if not text_values:
+        return 0
+
+    counts = Counter(text_values)
+    repeated_values = sum(1 for _, count in counts.items() if count > 1)
+    return repeated_values
+
+def _looks_like_unit_code_value(value):
+    if value is None:
+        return False
+
+    text = str(value).strip().lower()
+    if not text:
+        return False
+
+    patterns = [
+        r"^[a-z0-9]+(?:-[a-z0-9]+)+$",
+        r"^[a-z]\d+-[a-z0-9]+-\d+$",
+        r"^[a-z0-9]{2,}-[a-z0-9]{1,}-[a-z0-9]{1,}$",
+        r"^[a-z0-9]{2,}-[a-z0-9]{2,}$",
+    ]
+
+    return any(re.fullmatch(pattern, text) for pattern in patterns)
+
+
+def _looks_like_project_name(value):
+    if value is None:
+        return False
+
+    text = str(value).strip()
+    if not text:
+        return False
+
+    text_lower = text.lower()
+
+    if _looks_numeric(text):
+        return False
+
+    if _looks_like_unit_code_value(text):
+        return False
+
+    if _looks_like_building_value(text):
+        return False
+
+    if _looks_like_unit_type_value(text):
+        return False
+
+    return 1 <= len(text_lower.split()) <= 4
+
+def _looks_like_building_value(value):
+    if value is None:
+        return False
+
+    text = str(value).strip().lower()
+    if not text:
+        return False
+
+    patterns = [
+        r"\bbuilding\b",
+        r"\bblock\b",
+        r"\btower\b",
+        r"\bcluster\b",
+        r"\bbldg\b",
+        r"^[a-z]$",
+        r"^[a-z]\d+$",
+        r"^\d+[a-z]$",
+        r"^[a-z0-9]+-[a-z0-9]+$",
+    ]
+
+    return any(re.search(pattern, text) for pattern in patterns)
+
+
+def _looks_like_short_code(value):
+    if value is None:
+        return False
+
+    text = str(value).strip().lower()
+    if not text:
+        return False
+
+    return bool(re.fullmatch(r"[a-z]\d*", text))
+
+def _looks_like_short_code(value):
+    if value is None:
+        return False
+
+    text = str(value).strip().lower()
+    if not text:
+        return False
+
+    return bool(re.fullmatch(r"[a-z]\d*", text))
+
+def _looks_like_company_name(value):
+    if value is None:
+        return False
+
+    text = str(value).strip()
+    if not text:
+        return False
+
+    text_lower = text.lower()
+
+    if _looks_numeric(text):
+        return False
+
+    if _looks_like_short_code(text):
+        return False
+
+    if _looks_like_unit_code_value(text):
+        return False
+
+    if _looks_like_building_value(text):
+        return False
+
+    if _looks_like_unit_type_value(text):
+        return False
+
+    # company names are usually normal words, not codes
+    return len(text_lower.split()) <= 4 and len(text_lower) > 2
+
+def _looks_like_zone_value(value):
+    if value is None:
+        return False
+
+    text = str(value).strip().lower()
+    if not text:
+        return False
+
+    patterns = [
+        r"^[a-z]\d+\s?[a-z]$",
+        r"^[a-z]{1,2}\d+$",
+        r"^[a-z]\d+\s\d+$",
+    ]
+
+    return any(re.fullmatch(pattern, text) for pattern in patterns)
+
+def _looks_like_unit_code_value(value):
+    if value is None:
+        return False
+
+    text = str(value).strip().lower()
+    if not text:
+        return False
+
+    patterns = [
+        r"^[a-z0-9]+(?:-[a-z0-9]+)+$",
+        r"^[a-z0-9]{2,}-[a-z0-9]{1,}-[a-z0-9]{1,}$",
+        r"^[a-z]\d+-[a-z0-9]+-\d+$",
+    ]
+
+    return any(re.fullmatch(pattern, text) for pattern in patterns)
