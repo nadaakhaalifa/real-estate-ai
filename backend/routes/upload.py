@@ -1,7 +1,7 @@
-from fastapi import FastAPI, APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File
 import pandas as pd
 from backend.services.column_mapper import normalize_columns
-from backend.services.value_parser import parse_price
+from backend.services.value_parser import parse_price, parse_bedrooms
 from backend.services.column_detector import detect_column
 from backend.services.header_detector import detect_header_row
 
@@ -32,6 +32,12 @@ async def upload_excel(file: UploadFile = File(...)):
     # You are taking messy Excel values and converting them into usable numbers
     # create empty list to store parsed values
     parsed_prices = []
+    # create empty list to store parsed bedroom values
+    parsed_bedrooms = []
+    
+    # find the original excel column for bedrooms
+    bedrooms_column = detect_column(normalized_columns, "bedrooms")
+
     
     # find the original excel column for price
     price_column = detect_column(normalized_columns, "price_total")
@@ -47,6 +53,17 @@ async def upload_excel(file: UploadFile = File(...)):
            # store result in list
            parsed_prices.append(parsed_value)
 
+    # parse values only if a bedrooms column is found
+    if bedrooms_column:
+    # loop over each value in the detected column
+        for value in df[bedrooms_column]:
+          # convert messy text to clean number
+          parsed_value = parse_bedrooms(value)
+
+          # store result in list
+          parsed_bedrooms.append(parsed_value)    
+        
+        
         
     #return file metadata
     return{
@@ -54,5 +71,6 @@ async def upload_excel(file: UploadFile = File(...)):
         "rows": rows,
         "columns": columns,
         "normalized_columns": normalized_columns,
-        "parsed_prices_sample": parsed_prices[:5]  # just preview first 5
+        "parsed_prices_sample": parsed_prices[:5],  # just preview first 5
+        "parsed_bedrooms_sample": parsed_bedrooms[:5]
     }
