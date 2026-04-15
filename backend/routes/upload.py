@@ -5,6 +5,7 @@ from backend.services.value_parser import parse_price, parse_bedrooms, parse_are
 from backend.services.column_detector import detect_column
 from backend.services.header_detector import detect_header_row
 from backend.schemas import UnitPreview
+from backend.storage.in_memory_store import UNITS_DB
 
 # create router for upload endpoints
 router = APIRouter()
@@ -70,13 +71,27 @@ async def upload_excel(file: UploadFile = File(...)):
 
     # build one preview object per index
     for i in range(max_length):
-        unit = UnitPreview(
-             price_total=parsed_prices[i] if i < len(parsed_prices) else None,
-             bedrooms=parsed_bedrooms[i] if i < len(parsed_bedrooms) else None,
-             area_m2=parsed_areas[i] if i < len(parsed_areas) else None
-    )
+        price = parsed_prices[i] if i < len(parsed_prices) else None
+        bedrooms = parsed_bedrooms[i] if i < len(parsed_bedrooms) else None
+        area = parsed_areas[i] if i < len(parsed_areas) else None
 
-        unit_previews.append(unit.model_dump())   
+        # skip completely empty rows
+        if price is None and bedrooms is None and area is None:
+            continue
+
+        unit = UnitPreview(
+            price_total=price,
+            bedrooms=bedrooms,
+            area_m2=area
+        )
+
+        unit_previews.append(unit.model_dump())
+    
+    # store uploaded units in memory for search
+    UNITS_DB.clear()
+    UNITS_DB.extend(unit_previews)
+
+    print("UPLOADED UNITS:", len(UNITS_DB))   
         
         
     #return file metadata

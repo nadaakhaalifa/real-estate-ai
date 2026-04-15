@@ -1,5 +1,9 @@
 import re
 
+# translator between:
+# what the user types (human language)
+# what your backend understands (filters)
+
 # extract simple filters from text query
 def parse_search_query(query: str):
     result = {
