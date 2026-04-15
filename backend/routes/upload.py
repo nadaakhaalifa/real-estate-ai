@@ -38,42 +38,24 @@ async def upload_excel(file: UploadFile = File(...)):
     
 
     # find original excel columns
-    bedrooms_column = detect_column(normalized_columns, "bedrooms")
-    price_column = detect_column(normalized_columns, "price_total")
-    area_column = detect_column(normalized_columns, "area_m2")
+    bedrooms_column = detect_column(df, "bedrooms")
+    price_column = detect_column(df, "price_total")
+    area_column = detect_column(df, "area_m2")
+    
+    #Add debug prints to find out why some files fail
+    print("HEADER ROW:", header_row)
+    print("DETECTED PRICE COLUMN:", price_column)
+    print("DETECTED BEDROOMS COLUMN:", bedrooms_column)
+    print("DETECTED AREA COLUMN:", area_column)
     
     
-    # parse prices
-    if price_column:
-        for value in df[price_column]:
-           parsed_value = parse_price(value)
-           parsed_prices.append(parsed_value)
-
-    # parse bedrooms
-    if bedrooms_column:
-        for value in df[bedrooms_column]:
-          parsed_value = parse_bedrooms(value)
-          parsed_bedrooms.append(parsed_value)    
-        
-    # parse areas
-    if area_column:
-       for value in df[area_column]:
-           parsed_value = parse_area(value)
-           parsed_areas.append(parsed_value)
-        
-        
-    # combine parsed values into preview objects
-    # "Take price + bedroom + area → combine into ONE object" 
+       # build parsed units row by row
     unit_previews = []
 
-    # get max length between all lists
-    max_length = max(len(parsed_prices), len(parsed_bedrooms), len(parsed_areas), 0)
-
-    # build one preview object per index
-    for i in range(max_length):
-        price = parsed_prices[i] if i < len(parsed_prices) else None
-        bedrooms = parsed_bedrooms[i] if i < len(parsed_bedrooms) else None
-        area = parsed_areas[i] if i < len(parsed_areas) else None
+    for _, row in df.iterrows():
+        price = parse_price(row[price_column]) if price_column else None
+        bedrooms = parse_bedrooms(row[bedrooms_column]) if bedrooms_column else None
+        area = parse_area(row[area_column]) if area_column else None
 
         # skip completely empty rows
         if price is None and bedrooms is None and area is None:
@@ -86,22 +68,23 @@ async def upload_excel(file: UploadFile = File(...)):
         )
 
         unit_previews.append(unit.model_dump())
-    
+
     # store uploaded units in memory for search
     UNITS_DB.clear()
     UNITS_DB.extend(unit_previews)
 
-    print("UPLOADED UNITS:", len(UNITS_DB))   
-        
-        
-    #return file metadata
-    return{
+    print("UPLOADED UNITS:", len(UNITS_DB))
+
+    # return upload summary
+    return {
         "filename": file.filename,
         "rows": rows,
         "columns": columns,
         "normalized_columns": normalized_columns,
-        "parsed_prices_sample": parsed_prices[:5],  # just preview first 5
-        "parsed_bedrooms_sample": parsed_bedrooms[:5],
-        "parsed_areas_sample": parsed_areas[:5],
+        "detected_columns": {
+            "price_total": price_column,
+            "bedrooms": bedrooms_column,
+            "area_m2": area_column
+        },
         "unit_previews_sample": unit_previews[:5]
     }
