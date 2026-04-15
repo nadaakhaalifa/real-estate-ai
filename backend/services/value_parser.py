@@ -30,6 +30,7 @@ def parse_price(value):
     
     return None
 
+
 # parse bedroom text like 3 BR or 4 bedrooms 
 def parse_bedrooms(value):
     #return None for empty values
@@ -51,5 +52,31 @@ def parse_bedrooms(value):
         return int(numbers[0])
 
     return None
+  
+# parse area like 120 sqm or 150.5
+def parse_area(value):
+    # return None for empty values
+    if value is None:
+        return None
     
+    # convert to string and clean spaces
+    text = str(value).strip().lower()
+
+    # return None for blank text
+    if not text:
+        return None
+    
+     # remove commas
+    text = text.replace(",", "")
+
+    # find first number in the text
+    import re
+    numbers = re.findall(r"\d+\.?\d*", text)
+
+    # return first number if found
+    if numbers:
+        return float(numbers[0])
+
+    return None
+
     

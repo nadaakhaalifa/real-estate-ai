@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File
 import pandas as pd
 from backend.services.column_mapper import normalize_columns
-from backend.services.value_parser import parse_price, parse_bedrooms
+from backend.services.value_parser import parse_price, parse_bedrooms, parse_area
 from backend.services.column_detector import detect_column
 from backend.services.header_detector import detect_header_row
 
@@ -28,19 +28,17 @@ async def upload_excel(file: UploadFile = File(...)):
     
     # normalize column names
     normalized_columns = normalize_columns(df.columns)
-    
-    # You are taking messy Excel values and converting them into usable numbers
-    # create empty list to store parsed values
+
     parsed_prices = []
-    # create empty list to store parsed bedroom values
     parsed_bedrooms = []
+    parsed_areas = []
     
     # find the original excel column for bedrooms
     bedrooms_column = detect_column(normalized_columns, "bedrooms")
-
-    
     # find the original excel column for price
     price_column = detect_column(normalized_columns, "price_total")
+    # find the original excel column for area
+    area_column = detect_column(normalized_columns, "area_m2")
     
     
     # parse values only if a price column is found
@@ -63,7 +61,16 @@ async def upload_excel(file: UploadFile = File(...)):
           # store result in list
           parsed_bedrooms.append(parsed_value)    
         
-        
+    # parse values only if an area column is found
+    if area_column:
+       # loop over each value in the detected column
+       for value in df[area_column]:
+           # convert messy text to clean number
+           parsed_value = parse_area(value)
+
+           # store result in list
+           parsed_areas.append(parsed_value)
+         
         
     #return file metadata
     return{
@@ -72,5 +79,6 @@ async def upload_excel(file: UploadFile = File(...)):
         "columns": columns,
         "normalized_columns": normalized_columns,
         "parsed_prices_sample": parsed_prices[:5],  # just preview first 5
-        "parsed_bedrooms_sample": parsed_bedrooms[:5]
+        "parsed_bedrooms_sample": parsed_bedrooms[:5],
+        "parsed_areas_sample": parsed_areas[:5]
     }
