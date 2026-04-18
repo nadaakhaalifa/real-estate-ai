@@ -40,10 +40,9 @@ def score_column(column_name, sample_values, target_field):
         score -= sum(2 for v in clean_values if _looks_like_datetime_value(v))
 
     elif target_field == "bedrooms":
-        score += _score_name_keywords(name, ["bed", "bedroom", "bedrooms", "br"], 4)
-        score += sum(3 for v in clean_values if _looks_like_bedroom_value(v))
+        score += _score_name_keywords(name, ["bed", "bedroom", "bedrooms", "br","no of bedrooms", "no. of bedrooms","number of bedrooms",], 6)
+        score += sum(4 for v in clean_values if _looks_like_bedroom_value(v))
 
-        
         score -= sum(3 for v in clean_values if _looks_like_unit_code_value(v))
         score -= sum(2 for v in clean_values if _looks_like_datetime_value(v))
 
@@ -157,7 +156,7 @@ def detect_column(df, target_field, excluded_columns=None):
         "unit_type": 5,
         "price_total": 5,
         "area_m2": 5,
-        "bedrooms": 5,
+        "bedrooms": 4,
     }
 
     min_score = min_score_by_field.get(target_field, 1)

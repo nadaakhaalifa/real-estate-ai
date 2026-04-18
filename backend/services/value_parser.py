@@ -36,33 +36,22 @@ def parse_bedrooms(value):
     if value is None:
         return None
 
-    text = str(value).strip().lower()
+    try:
+        import pandas as pd
+        if pd.isna(value):
+            return None
+    except:
+        pass
 
-    if not text:
-        return None
+    if isinstance(value, (int, float)):
+        return int(value)
 
-    # studio = 0 bedrooms
-    if "studio" in text:
-        return 0
+    text = str(value).lower().strip()
 
-    # plain numeric bedrooms like 1, 2, 3, 4
-    if re.fullmatch(r"\d+", text):
-        number = int(text)
-        if 0 <= number <= 10:
-            return number
-        return None
-
-    # text patterns like 2 bed / 3 bedrooms / 1 br
-    patterns = [
-        r"^(\d+)\s*(bed|beds|bedroom|bedrooms|br|bd)$",
-        r"^(\d+)\s*-\s*(bed|beds|bedroom|bedrooms|br|bd)$",
-        r"^(\d+)\s+(bed|beds|bedroom|bedrooms|br|bd)\s*$",
-    ]
-
-    for pattern in patterns:
-        match = re.match(pattern, text)
-        if match:
-            return int(match.group(1))
+    import re
+    match = re.search(r'\d+', text)
+    if match:
+        return int(match.group())
 
     return None
 

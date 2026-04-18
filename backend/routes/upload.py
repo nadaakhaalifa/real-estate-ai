@@ -32,6 +32,11 @@ def parse_single_file(file: UploadFile):
 
         # load excel into dataframe
         df = pd.read_excel(file.file, header=header_row)
+
+        print("COLUMNS:", [repr(c) for c in df.columns.tolist()])
+        print("DTYPES:")
+        print(df.dtypes)
+
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -90,15 +95,34 @@ def parse_single_file(file: UploadFile):
     print("FILE:", file.filename)
     print("HEADER ROW:", header_row)
     print("PRICE COLUMN:", price_column)
-    print("BEDROOMS COLUMN:", bedrooms_column)
+    print("BEDROOMS COLUMN:", repr(bedrooms_column))
     print("AREA COLUMN:", area_column)
 
-    unit_previews = []
+    if bedrooms_column:
+      print("BEDROOM COLUMN HEAD VALUES:")
+      print(df[bedrooms_column].head(20).tolist())
 
+      print("BEDROOM + PROJECT + AREA + PRICE PREVIEW:")
+      preview_cols = [c for c in [project_column, bedrooms_column, area_column, price_column] if c]
+      print(df[preview_cols].head(20))
+      
+      
+    unit_previews = []
+    
+    # temporary fix if exported sheet has intermittent blank bedroom cells
+    if bedrooms_column: 
+      df[bedrooms_column] = df[bedrooms_column].ffill()
+      
     # loop over rows and build structured units
     for _, row in df.iterrows():
         price = parse_price(row[price_column]) if price_column else None
-        bedrooms = parse_bedrooms(row[bedrooms_column]) if bedrooms_column else None
+
+        raw_bedroom = row[bedrooms_column] if bedrooms_column else None
+        bedrooms = parse_bedrooms(raw_bedroom) if bedrooms_column else None
+
+        print("RAW BEDROOM VALUE:", repr(raw_bedroom), type(raw_bedroom))
+        print("PARSED BEDROOMS:", bedrooms)
+
         area = parse_area(row[area_column]) if area_column else None
 
         location = clean_text(row[location_column]) if location_column else None
