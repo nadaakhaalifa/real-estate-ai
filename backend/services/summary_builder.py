@@ -7,79 +7,70 @@ def build_summary(units):
         project = unit.get("project_name")
         bedrooms = unit.get("bedrooms")
         unit_type = unit.get("unit_type")
-        area = unit.get("area_m2")
         price = unit.get("price_total")
 
-        # skip invalid rows (no project = useless data)
+        # skip rows with no project
         if project is None:
             continue
 
-        # choose grouping: bedrooms first, otherwise fallback to unit_type
+        # use bedrooms first, otherwise fallback to unit_type
         category_type = "bedrooms" if bedrooms is not None else "unit_type"
         category_value = bedrooms if bedrooms is not None else unit_type
 
-        # skip if no grouping value found
+        # skip rows with no grouping value
         if category_value is None:
             continue
 
-        # unique key per group
+        # skip rows with no price because we want a real starting unit
+        if price is None:
+            continue
+
         key = (developer, project, category_type, category_value)
 
-        # initialize group
         if key not in grouped:
             grouped[key] = {
                 "developer_name": developer,
                 "project_name": project,
                 "category_type": category_type,
                 "category_value": category_value,
-                "areas": [],
-                "prices": [],
+                "units": [],
             }
 
-        # collect values
-        if area is not None:
-            grouped[key]["areas"].append(area)
-
-        if price is not None:
-            grouped[key]["prices"].append(price)
+        grouped[key]["units"].append(unit)
 
     summary_rows = []
 
-    # build final summary rows
     for group in grouped.values():
-        areas = group["areas"]
-        prices = group["prices"]
+        units_in_group = group["units"]
+
+        if not units_in_group:
+            continue
+
+        # choose one real connected row = lowest price row
+        starting_unit = min(units_in_group, key=lambda x: x["price_total"])
 
         summary_rows.append({
             "developer_name": group["developer_name"],
             "project_name": group["project_name"],
             "category_type": group["category_type"],
             "category_value": group["category_value"],
-            "min_area_m2": min(areas) if areas else None,
-            "max_area_m2": max(areas) if areas else None,
-            "min_price": min(prices) if prices else None,
-            "max_price": max(prices) if prices else None,
+
+            # all values below come from the SAME row
+            "starting_price": round(starting_unit["price_total"], 2) if starting_unit.get("price_total") is not None else None,
+            "starting_area_m2": round(starting_unit["area_m2"], 2) if starting_unit.get("area_m2") is not None else None,
+            "unit_code": starting_unit.get("unit_code"),
+            "building": starting_unit.get("building"),
+            "floor_number": starting_unit.get("floor_number"),
+            "unit_type": starting_unit.get("unit_type"),
         })
 
-    # sort output for consistency (important for frontend/PDF)
     summary_rows = sorted(
         summary_rows,
         key=lambda x: (
             x["project_name"] or "",
-            x["category_type"],
+            x["category_type"] or "",
             str(x["category_value"])
         )
     )
-
-    # round numbers for cleaner display
-    for row in summary_rows:
-        if row["min_price"] is not None:
-            row["min_price"] = round(row["min_price"], 2)
-        if row["max_price"] is not None:
-            row["max_price"] = round(row["max_price"], 2)
-        if row["min_area_m2"] is not None:
-            row["min_area_m2"] = round(row["min_area_m2"], 2)
-        if row["max_area_m2"] is not None:
-            row["max_area_m2"] = round(row["max_area_m2"], 2)
 
     return summary_rows

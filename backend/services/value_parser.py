@@ -31,23 +31,28 @@ def parse_price(value):
     return None
 
 
-# parse bedroom text like 3 BR or 4 bedrooms 
+# parse bedroom text like 3 BR, 4 bedrooms, or plain numbers like 1 / 2 / 3
 def parse_bedrooms(value):
-    #return None for empty values
     if value is None:
         return None
-    
-    # convert to string and clean spaces
+
     text = str(value).strip().lower()
 
     if not text:
         return None
 
     # studio = 0 bedrooms
-    if text == "studio" or "studio" in text:
+    if "studio" in text:
         return 0
 
-    # only accept real bedroom patterns
+    # plain numeric bedrooms like 1, 2, 3, 4
+    if re.fullmatch(r"\d+", text):
+        number = int(text)
+        if 0 <= number <= 10:
+            return number
+        return None
+
+    # text patterns like 2 bed / 3 bedrooms / 1 br
     patterns = [
         r"^(\d+)\s*(bed|beds|bedroom|bedrooms|br|bd)$",
         r"^(\d+)\s*-\s*(bed|beds|bedroom|bedrooms|br|bd)$",

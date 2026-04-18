@@ -43,7 +43,7 @@ def score_column(column_name, sample_values, target_field):
         score += _score_name_keywords(name, ["bed", "bedroom", "bedrooms", "br"], 4)
         score += sum(3 for v in clean_values if _looks_like_bedroom_value(v))
 
-        score -= sum(3 for v in clean_values if _looks_numeric(v) and not _looks_like_bedroom_value(v))
+        
         score -= sum(3 for v in clean_values if _looks_like_unit_code_value(v))
         score -= sum(2 for v in clean_values if _looks_like_datetime_value(v))
 
@@ -220,12 +220,20 @@ def _looks_like_bedroom_value(value):
         return False
 
     text = str(value).lower().strip()
+    if not text:
+        return False
 
+    # studio
     if "studio" in text:
         return True
 
-    return bool(re.fullmatch(r"\d+\s*(bed|bedroom|bedrooms|br|bd)", text))
+    # plain numeric bedroom counts like 1, 2, 3, 4, 5
+    if re.fullmatch(r"\d+", text):
+        number = int(text)
+        return 0 <= number <= 10
 
+    # text bedroom patterns like 2 bed / 3 bedrooms / 1 br
+    return bool(re.fullmatch(r"\d+\s*(bed|beds|bedroom|bedrooms|br|bd|room)", text))
 
 def _looks_like_unit_type_value(value):
     if value is None:
