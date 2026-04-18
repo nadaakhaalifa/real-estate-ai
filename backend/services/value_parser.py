@@ -39,20 +39,29 @@ def parse_bedrooms(value):
     
     # convert to string and clean spaces
     text = str(value).strip().lower()
-    
-    #return None for blank text
+
     if not text:
         return None
-    
-     # find first number in the text
-    numbers = re.findall(r"\d+", text) 
-    
-    # return first number if found
-    if numbers:
-        return int(numbers[0])
+
+    # studio = 0 bedrooms
+    if text == "studio" or "studio" in text:
+        return 0
+
+    # only accept real bedroom patterns
+    patterns = [
+        r"^(\d+)\s*(bed|beds|bedroom|bedrooms|br|bd)$",
+        r"^(\d+)\s*-\s*(bed|beds|bedroom|bedrooms|br|bd)$",
+        r"^(\d+)\s+(bed|beds|bedroom|bedrooms|br|bd)\s*$",
+    ]
+
+    for pattern in patterns:
+        match = re.match(pattern, text)
+        if match:
+            return int(match.group(1))
 
     return None
-  
+
+
 # parse area like 120 sqm or 150.5
 def parse_area(value):
     # return None for empty values
