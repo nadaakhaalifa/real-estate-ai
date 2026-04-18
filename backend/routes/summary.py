@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from backend.storage.in_memory_store import UNITS_DB
 from backend.services.summary_builder import build_summary
 from backend.services.pdf_generator import generate_summary_pdf
+from backend.services.excel_generator import generate_summary_excel
 
 router = APIRouter()
 
@@ -29,4 +30,16 @@ def get_summary_pdf():
         pdf_buffer,
         media_type="application/pdf",
         headers={"Content-Disposition": "inline; filename=summary_report.pdf"},
+    )
+    
+# return grouped summary as excel
+@router.get("/summary/excel")
+def get_summary_excel():
+    summary_rows = build_summary(UNITS_DB)
+    excel_buffer = generate_summary_excel(summary_rows)
+
+    return StreamingResponse(
+        excel_buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=summary_report.xlsx"},
     )
