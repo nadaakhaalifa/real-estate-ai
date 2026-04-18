@@ -10,19 +10,22 @@ def build_summary(units):
         area = unit.get("area_m2")
         price = unit.get("price_total")
 
-        # skip rows with no project
+        # skip invalid rows (no project = useless data)
         if project is None:
             continue
 
-        # use bedrooms if available, otherwise fallback to unit_type
+        # choose grouping: bedrooms first, otherwise fallback to unit_type
         category_type = "bedrooms" if bedrooms is not None else "unit_type"
         category_value = bedrooms if bedrooms is not None else unit_type
 
+        # skip if no grouping value found
         if category_value is None:
             continue
 
+        # unique key per group
         key = (developer, project, category_type, category_value)
 
+        # initialize group
         if key not in grouped:
             grouped[key] = {
                 "developer_name": developer,
@@ -33,6 +36,7 @@ def build_summary(units):
                 "prices": [],
             }
 
+        # collect values
         if area is not None:
             grouped[key]["areas"].append(area)
 
@@ -41,6 +45,7 @@ def build_summary(units):
 
     summary_rows = []
 
+    # build final summary rows
     for group in grouped.values():
         areas = group["areas"]
         prices = group["prices"]
@@ -55,5 +60,26 @@ def build_summary(units):
             "min_price": min(prices) if prices else None,
             "max_price": max(prices) if prices else None,
         })
+
+    # sort output for consistency (important for frontend/PDF)
+    summary_rows = sorted(
+        summary_rows,
+        key=lambda x: (
+            x["project_name"] or "",
+            x["category_type"],
+            str(x["category_value"])
+        )
+    )
+
+    # round numbers for cleaner display
+    for row in summary_rows:
+        if row["min_price"] is not None:
+            row["min_price"] = round(row["min_price"], 2)
+        if row["max_price"] is not None:
+            row["max_price"] = round(row["max_price"], 2)
+        if row["min_area_m2"] is not None:
+            row["min_area_m2"] = round(row["min_area_m2"], 2)
+        if row["max_area_m2"] is not None:
+            row["max_area_m2"] = round(row["max_area_m2"], 2)
 
     return summary_rows
