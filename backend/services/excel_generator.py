@@ -45,9 +45,6 @@ def generate_summary_excel(summary_rows):
         "Category",
         "Starting Price",
         "Starting Area (m2)",
-        "Unit Code",
-        "Building",
-        "Floor",
     ]
 
     sheet.append(headers)
@@ -69,9 +66,6 @@ def generate_summary_excel(summary_rows):
             format_category(row.get("category_type"), row.get("category_value")),
             row.get("starting_price"),
             row.get("starting_area_m2"),
-            row.get("unit_code") or "-",
-            row.get("building") or "-",
-            row.get("floor_number") or "-",
         ])
 
     # center align all cells

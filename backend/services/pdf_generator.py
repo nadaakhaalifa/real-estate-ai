@@ -115,9 +115,6 @@ def generate_summary_pdf(summary_rows):
         "Category",
         "Starting Price",
         "Starting Area",
-        "Unit Code",
-        "Building",
-        "Floor",
     ]]
 
     for row in summary_rows:
@@ -127,9 +124,6 @@ def generate_summary_pdf(summary_rows):
             format_category(row.get("category_type"), row.get("category_value")),
             format_price(row.get("starting_price")),
             format_area(row.get("starting_area_m2")),
-            row.get("unit_code") or "-",
-            row.get("building") or "-",
-            row.get("floor_number") or "-",
         ])
     usable_width = 27 * cm
     col_widths = calculate_dynamic_col_widths(table_data, usable_width)
