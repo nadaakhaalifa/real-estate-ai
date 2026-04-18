@@ -20,6 +20,7 @@ class UnitPreview(BaseModel):
     building: str | None = None
     floor_number: str | None = None
     unit_code: str | None = None
+    source_file: str | None = None
     raw_data: dict[str, Any] = Field(default_factory=dict)
     
 # request schema for search endpoint
