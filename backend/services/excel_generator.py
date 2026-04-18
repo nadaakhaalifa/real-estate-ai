@@ -18,6 +18,21 @@ def format_category(category_type, category_value):
     return str(category_value)
 
 
+def auto_fit_columns(sheet, min_width=12, max_width=40):
+    # size columns based on longest cell content
+    for column_cells in sheet.columns:
+        max_length = 0
+        column_letter = column_cells[0].column_letter
+
+        for cell in column_cells:
+            value = "" if cell.value is None else str(cell.value)
+            if len(value) > max_length:
+                max_length = len(value)
+
+        adjusted_width = max(min_width, min(max_length + 2, max_width))
+        sheet.column_dimensions[column_letter].width = adjusted_width
+
+
 # build excel report from summary rows
 def generate_summary_excel(summary_rows):
     workbook = openpyxl.Workbook()
@@ -59,25 +74,18 @@ def generate_summary_excel(summary_rows):
             row.get("floor_number") or "-",
         ])
 
-    # set column widths
-    widths = {
-        "A": 18,
-        "B": 24,
-        "C": 18,
-        "D": 18,
-        "E": 18,
-        "F": 16,
-        "G": 14,
-        "H": 12,
-    }
-
-    for col, width in widths.items():
-        sheet.column_dimensions[col].width = width
-
-    # center align everything
+    # center align all cells
     for row in sheet.iter_rows():
         for cell in row:
             cell.alignment = Alignment(horizontal="center", vertical="center")
+        
+    # format numeric columns
+    for row in range(2, sheet.max_row + 1):
+        sheet[f"D{row}"].number_format = '#,##0.00'
+        sheet[f"E{row}"].number_format = '#,##0.00'
+
+    # auto size columns dynamically
+    auto_fit_columns(sheet)
 
     buffer = BytesIO()
     workbook.save(buffer)
