@@ -3,6 +3,7 @@ from fastapi.openapi.utils import get_openapi
 
 from backend.routes.upload import router as upload_router
 from backend.routes.search import router as search_router
+from backend.routes.summary import router as summary_router
 
 # create app instance [backend application]
 app = FastAPI(title="Real Estate AI")
@@ -10,6 +11,7 @@ app = FastAPI(title="Real Estate AI")
 # register routes
 app.include_router(upload_router)
 app.include_router(search_router)
+app.include_router(summary_router)
 
 
 # fix Swagger UI rendering for multiple file uploads
