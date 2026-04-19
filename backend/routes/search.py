@@ -63,6 +63,21 @@ def search(filters: SearchRequest, db: Session = Depends(get_db)):
     if filters.page_size > 100:
         filters.page_size = 100
 
+    allowed_sort_fields = {
+        "price_total": Unit.price_total,
+        "area_m2": Unit.area_m2,
+        "bedrooms": Unit.bedrooms,
+        "project_name": Unit.project_name,
+        "developer_name": Unit.developer_name,
+        "location": Unit.location,
+    }
+
+    if filters.sort_by not in allowed_sort_fields:
+        filters.sort_by = "price_total"
+
+    if filters.sort_order not in ["asc", "desc"]:
+        filters.sort_order = "asc"
+
     query = db.query(Unit)
 
     if filters.min_price is not None:
@@ -100,9 +115,16 @@ def search(filters: SearchRequest, db: Session = Depends(get_db)):
 
     total_count = query.count()
 
+    sort_column = allowed_sort_fields[filters.sort_by]
+
+    if filters.sort_order == "desc":
+        query = query.order_by(sort_column.desc().nullslast())
+    else:
+        query = query.order_by(sort_column.asc().nullslast())
+
     offset = (filters.page - 1) * filters.page_size
 
-    units = query.order_by(Unit.price_total.asc().nullslast()).offset(offset).limit(filters.page_size).all()
+    units = query.offset(offset).limit(filters.page_size).all()
 
     results = []
 
@@ -133,11 +155,15 @@ def search(filters: SearchRequest, db: Session = Depends(get_db)):
     print("RESULT COUNT:", len(results))
     print("PAGE:", filters.page)
     print("PAGE SIZE:", filters.page_size)
+    print("SORT BY:", filters.sort_by)
+    print("SORT ORDER:", filters.sort_order)
 
     return {
         "count": len(results),
         "total_count": total_count,
         "page": filters.page,
         "page_size": filters.page_size,
+        "sort_by": filters.sort_by,
+        "sort_order": filters.sort_order,
         "results": results
     }
