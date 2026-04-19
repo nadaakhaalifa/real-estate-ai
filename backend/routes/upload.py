@@ -96,11 +96,11 @@ def parse_single_file(file: UploadFile):
         used_columns.add(area_column)
 
     unit_previews = []
-    
-    # temporary fix if exported sheet has intermittent blank bedroom cells
-    if bedrooms_column: 
-      df[bedrooms_column] = df[bedrooms_column].ffill()
-      
+
+    # fix for missing bedroom values (forward fill)
+    if bedrooms_column:
+        df[bedrooms_column] = df[bedrooms_column].ffill()
+
     # loop over rows and build structured units
     for _, row in df.iterrows():
         price = parse_price(row[price_column]) if price_column else None
@@ -121,7 +121,7 @@ def parse_single_file(file: UploadFile):
         if bedrooms is None and unit_type:
             bedrooms = parse_bedrooms(unit_type)
 
-        # skip empty rows
+        # skip completely empty rows
         if (
             price is None
             and bedrooms is None
@@ -180,16 +180,17 @@ async def upload_files(
         list[UploadFile],
         File(..., description="Upload up to 50 Excel files")
     ],
-    db: Session = Depends(get_db)   # 👈 ADD THIS LINE
+    db: Session = Depends(get_db)
 ):
-    # validate input
+    # -----------------------------
+    # VALIDATION
+    # -----------------------------
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
 
     if len(files) > 50:
         raise HTTPException(status_code=400, detail="Max 50 files allowed")
 
-    # allow only excel files
     allowed_extensions = (".xlsx", ".xls")
 
     for file in files:
@@ -202,6 +203,16 @@ async def upload_files(
                 detail=f"Unsupported file type: {file.filename}"
             )
 
+    # -----------------------------
+    #  RESET CURRENT DATASET
+    # -----------------------------
+    db.query(Unit).delete()
+    db.query(Upload).delete()
+    db.commit()
+
+    # -----------------------------
+    # PROCESS FILES
+    # -----------------------------
     total_units_inserted = 0
     uploaded_files_summary = []
     sample_units = []
@@ -209,10 +220,12 @@ async def upload_files(
     for file in files:
         result = parse_single_file(file)
 
+        # create upload record
         upload_record = Upload(filename=result["filename"])
         db.add(upload_record)
         db.flush()
 
+        # insert units
         for unit_data in result["units"]:
             unit = Unit(
                 upload_id=upload_record.id,
@@ -246,6 +259,7 @@ async def upload_files(
             "detected_columns": result["detected_columns"],
         })
 
+        # keep sample (max 10)
         if len(sample_units) < 10:
             remaining = 10 - len(sample_units)
             sample_units.extend(result["units"][:remaining])
@@ -254,6 +268,9 @@ async def upload_files(
 
     total_units_in_db = db.query(Unit).count()
 
+    # -----------------------------
+    # RESPONSE
+    # -----------------------------
     return {
         "files_uploaded": len(files),
         "total_units_inserted_now": total_units_inserted,
