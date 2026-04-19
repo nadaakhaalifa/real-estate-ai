@@ -22,18 +22,18 @@ class Unit(Base):
 
     upload_id = Column(Integer, ForeignKey("uploads.id"), nullable=False)
 
-    developer_name = Column(String, nullable=True)
-    project_name = Column(String, nullable=True)
-    location = Column(String, nullable=True)
+    developer_name = Column(String, nullable=True, index=True)
+    project_name = Column(String, nullable=True, index=True)
+    location = Column(String, nullable=True, index=True)
     district = Column(String, nullable=True)
-    stage = Column(String, nullable=True)
-    unit_type = Column(String, nullable=True)
+    stage = Column(String, nullable=True, index=True)
+    unit_type = Column(String, nullable=True, index=True)
 
-    bedrooms = Column(Integer, nullable=True)
+    bedrooms = Column(Integer, nullable=True, index=True)
     bathrooms = Column(Integer, nullable=True)
 
-    area_m2 = Column(Float, nullable=True)
-    price_total = Column(Float, nullable=True)
+    area_m2 = Column(Float, nullable=True, index=True)
+    price_total = Column(Float, nullable=True, index=True)
     price_per_m2 = Column(Float, nullable=True)
 
     delivery_date = Column(String, nullable=True)
