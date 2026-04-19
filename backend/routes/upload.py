@@ -1,12 +1,16 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 import pandas as pd
 from backend.services.column_mapper import normalize_columns
 from backend.services.value_parser import parse_price, parse_bedrooms, parse_area
 from backend.services.column_detector import detect_column
 from backend.services.header_detector import detect_header_row
 from backend.schemas import UnitPreview
-from backend.storage.in_memory_store import UNITS_DB
+
 from typing import Annotated
+from sqlalchemy.orm import Session
+
+from backend.database import get_db
+from backend.models import Upload, Unit
 
 # create router
 router = APIRouter()
@@ -175,7 +179,8 @@ async def upload_files(
     files: Annotated[
         list[UploadFile],
         File(..., description="Upload up to 50 Excel files")
-    ]
+    ],
+    db: Session = Depends(get_db)   # 👈 ADD THIS LINE
 ):
     # validate input
     if not files:
@@ -197,17 +202,43 @@ async def upload_files(
                 detail=f"Unsupported file type: {file.filename}"
             )
 
-    all_units = []
+    total_units_inserted = 0
     uploaded_files_summary = []
+    sample_units = []
 
-    # process each file
     for file in files:
         result = parse_single_file(file)
 
-        # collect all units
-        all_units.extend(result["units"])
+        upload_record = Upload(filename=result["filename"])
+        db.add(upload_record)
+        db.flush()
 
-        # collect file summary
+        for unit_data in result["units"]:
+            unit = Unit(
+                upload_id=upload_record.id,
+                developer_name=unit_data.get("developer_name"),
+                project_name=unit_data.get("project_name"),
+                location=unit_data.get("location"),
+                district=unit_data.get("district"),
+                stage=unit_data.get("stage"),
+                unit_type=unit_data.get("unit_type"),
+                bedrooms=unit_data.get("bedrooms"),
+                bathrooms=unit_data.get("bathrooms"),
+                area_m2=unit_data.get("area_m2"),
+                price_total=unit_data.get("price_total"),
+                price_per_m2=unit_data.get("price_per_m2"),
+                delivery_date=unit_data.get("delivery_date"),
+                finishing_status=unit_data.get("finishing_status"),
+                building=unit_data.get("building"),
+                floor_number=unit_data.get("floor_number"),
+                unit_code=unit_data.get("unit_code"),
+                source_file=unit_data.get("source_file"),
+                raw_data=unit_data.get("raw_data", {}),
+            )
+            db.add(unit)
+
+        total_units_inserted += len(result["units"])
+
         uploaded_files_summary.append({
             "filename": result["filename"],
             "rows": result["rows"],
@@ -215,16 +246,18 @@ async def upload_files(
             "detected_columns": result["detected_columns"],
         })
 
-    # store all data in memory
-    UNITS_DB.clear()
-    UNITS_DB.extend(all_units)
+        if len(sample_units) < 10:
+            remaining = 10 - len(sample_units)
+            sample_units.extend(result["units"][:remaining])
 
-    print("TOTAL UNITS STORED:", len(UNITS_DB))
+    db.commit()
 
-    # return response
+    total_units_in_db = db.query(Unit).count()
+
     return {
         "files_uploaded": len(files),
-        "total_units": len(UNITS_DB),
+        "total_units_inserted_now": total_units_inserted,
+        "total_units_in_db": total_units_in_db,
         "files": uploaded_files_summary,
-        "sample_units": UNITS_DB[:10],
+        "sample_units": sample_units,
     }

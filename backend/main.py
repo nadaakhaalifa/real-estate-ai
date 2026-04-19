@@ -5,6 +5,11 @@ from backend.routes.upload import router as upload_router
 from backend.routes.search import router as search_router
 from backend.routes.summary import router as summary_router
 
+from backend.database import engine
+from backend.models import Base
+
+Base.metadata.create_all(bind=engine)
+
 # create app instance [backend application]
 app = FastAPI(title="Real Estate AI")
 
