@@ -37,3 +37,6 @@ class SearchRequest(BaseModel):
     project_name: str | None = None
     unit_type: str | None = None
     stage: str | None = None
+    
+    page: int = 1
+    page_size: int = 20
