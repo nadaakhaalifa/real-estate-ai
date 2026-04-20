@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Global styling for the whole app */
 :root {
   font-family: Inter, system-ui, sans-serif;
 }
