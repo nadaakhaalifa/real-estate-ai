@@ -16,12 +16,24 @@ function App() {
     direction: "asc",
   });
 
-  const handleGetSummary = async () => {
+  const handleGetSummary = async (
+    nextSearch = searchTerm,
+    nextCategory = categoryFilter,
+    nextSort = sortConfig
+  ) => {
     try {
       setLoadingSummary(true);
       setSummaryError("");
 
-      const response = await api.get("/summary");
+      const response = await api.get("/summary", {
+        params: {
+          search: nextSearch,
+          category: nextCategory,
+          sort_key: nextSort.key,
+          sort_direction: nextSort.direction,
+        },
+      });
+
       setSummaryData(response.data);
     } catch (error) {
       console.error(error);
@@ -46,60 +58,52 @@ function App() {
     return `${Number(value).toLocaleString()} EGP`;
   };
 
-  const rawRows = summaryData?.summary_rows || [];
-
   const categoryOptions = useMemo(() => {
-    const values = rawRows
+    const rows = summaryData?.summary_rows || [];
+    const values = rows
       .map((row) => row.category_value)
       .filter((value) => value !== null && value !== undefined && value !== "");
 
     return ["all", ...new Set(values.map(String))];
-  }, [rawRows]);
+  }, [summaryData]);
 
-  const filteredAndSortedRows = useMemo(() => {
-    let rows = [...rawRows];
+  const exportQuery = new URLSearchParams({
+    search: searchTerm,
+    category: categoryFilter,
+    sort_key: sortConfig.key,
+    sort_direction: sortConfig.direction,
+  }).toString();
 
-    if (searchTerm.trim()) {
-      const lowerSearch = searchTerm.toLowerCase();
-      rows = rows.filter((row) =>
-        (row.project_name || "").toLowerCase().includes(lowerSearch)
-      );
+  const handleSearchChange = async (e) => {
+    const newValue = e.target.value;
+    setSearchTerm(newValue);
+
+    if (summaryData) {
+      await handleGetSummary(newValue, categoryFilter, sortConfig);
     }
+  };
 
-    if (categoryFilter !== "all") {
-      rows = rows.filter(
-        (row) => String(row.category_value) === String(categoryFilter)
-      );
+  const handleCategoryChange = async (e) => {
+    const newValue = e.target.value;
+    setCategoryFilter(newValue);
+
+    if (summaryData) {
+      await handleGetSummary(searchTerm, newValue, sortConfig);
     }
+  };
 
-    rows.sort((a, b) => {
-      const { key, direction } = sortConfig;
-
-      let aValue = a[key];
-      let bValue = b[key];
-
-      if (key === "project_name") {
-        aValue = (aValue || "").toString().toLowerCase();
-        bValue = (bValue || "").toString().toLowerCase();
-      } else {
-        aValue = aValue ?? 0;
-        bValue = bValue ?? 0;
-      }
-
-      if (aValue < bValue) return direction === "asc" ? -1 : 1;
-      if (aValue > bValue) return direction === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return rows;
-  }, [rawRows, searchTerm, categoryFilter, sortConfig]);
-
-  const handleSort = (key) => {
-    setSortConfig((prev) => ({
+  const handleSort = async (key) => {
+    const nextSort = {
       key,
       direction:
-        prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-    }));
+        sortConfig.key === key && sortConfig.direction === "asc" ? "desc" : "asc",
+    };
+
+    setSortConfig(nextSort);
+
+    if (summaryData) {
+      await handleGetSummary(searchTerm, categoryFilter, nextSort);
+    }
   };
 
   const SortButton = ({ label, sortKey }) => (
@@ -152,7 +156,7 @@ function App() {
     <div className="min-h-screen bg-slate-950 px-4 py-10 text-white">
       <div className="mx-auto flex max-w-6xl flex-col items-center">
         <h1 className="mb-3 text-center text-4xl font-bold">
-          Starting Price Report
+          Real Estate Analysis Platform
         </h1>
 
         <p className="mb-10 text-center text-slate-300">
@@ -175,7 +179,7 @@ function App() {
             </div>
 
             <button
-              onClick={handleGetSummary}
+              onClick={() => handleGetSummary()}
               disabled={loadingSummary}
               className="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-white transition duration-300 hover:scale-105 hover:bg-cyan-400 hover:shadow-lg hover:shadow-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -201,13 +205,13 @@ function App() {
                   </p>
 
                   <div className="w-fit rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-300">
-                    {filteredAndSortedRows.length} visible rows
+                    {summaryData.summary_rows.length} visible rows
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <a
-                    href={`${API_URL}/summary/pdf`}
+                    href={`${API_URL}/summary/pdf?${exportQuery}`}
                     target="_blank"
                     rel="noreferrer"
                     className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-center font-semibold text-white transition-all duration-300 hover:scale-105"
@@ -218,7 +222,7 @@ function App() {
                   </a>
 
                   <a
-                    href={`${API_URL}/summary/excel`}
+                    href={`${API_URL}/summary/excel?${exportQuery}`}
                     className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-3 text-center font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-cyan-500/40"
                   >
                     <span className="relative z-10">Export Excel</span>
@@ -234,7 +238,7 @@ function App() {
                     type="text"
                     placeholder="Search by project name..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={handleSearchChange}
                     className="w-full rounded-2xl border border-white/10 bg-slate-950/80 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-cyan-400"
                   />
                 </div>
@@ -243,7 +247,7 @@ function App() {
                   <SlidersHorizontal className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <select
                     value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    onChange={handleCategoryChange}
                     className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/80 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-cyan-400"
                   >
                     {categoryOptions.map((option) => (
@@ -283,11 +287,11 @@ function App() {
                   </thead>
 
                   <tbody>
-                    {filteredAndSortedRows.length > 0 ? (
-                      filteredAndSortedRows.map((row, index) => (
+                    {summaryData.summary_rows.length > 0 ? (
+                      summaryData.summary_rows.map((row, index) => (
                         <tr
                           key={index}
-                          className="border-b border-slate-800 transition duration-300 hover:scale-[1.01] hover:bg-slate-800/60"
+                          className="border-b border-slate-800 transition duration-300 hover:bg-slate-800/60"
                         >
                           <td className="p-4 font-semibold text-white">
                             {row.project_name || "-"}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from backend.services.summary_builder import build_summary
@@ -11,6 +11,14 @@ from backend.models import Unit
 
 
 router = APIRouter()
+
+
+ALLOWED_SORT_KEYS = {
+    "project_name",
+    "category_value",
+    "starting_price",
+    "starting_area_m2",
+}
 
 
 def serialize_units(units):
@@ -41,24 +49,114 @@ def serialize_units(units):
     return units_data
 
 
-@router.get("/summary")
-def get_summary(db: Session = Depends(get_db)):
+def filter_and_sort_summary_rows(
+    summary_rows,
+    search="",
+    category="all",
+    sort_key="project_name",
+    sort_direction="asc",
+):
+    rows = summary_rows[:]
+
+    search = (search or "").strip()
+    category = str(category or "all").strip()
+    sort_key = sort_key if sort_key in ALLOWED_SORT_KEYS else "project_name"
+    sort_direction = "desc" if str(sort_direction).lower() == "desc" else "asc"
+
+    # filter by search term (project name)
+    if search:
+        search_lower = search.lower()
+        rows = [
+            row for row in rows
+            if search_lower in str(row.get("project_name") or "").lower()
+        ]
+
+    # filter by category
+    if category != "all":
+        rows = [
+            row for row in rows
+            if str(row.get("category_value")) == category
+        ]
+
+    reverse = sort_direction == "desc"
+
+    def sort_value(row):
+        value = row.get(sort_key)
+
+        if sort_key == "project_name":
+            return str(value or "").lower()
+
+        if sort_key in {"category_value", "starting_price", "starting_area_m2"}:
+            return value if value is not None else 0
+
+        return value
+
+    rows.sort(key=sort_value, reverse=reverse)
+    return rows
+
+
+def build_filtered_summary_rows(
+    db: Session,
+    search="",
+    category="all",
+    sort_key="project_name",
+    sort_direction="asc",
+):
     units = db.query(Unit).all()
     units_data = serialize_units(units)
     summary_rows = build_summary(units_data)
 
+    filtered_rows = filter_and_sort_summary_rows(
+        summary_rows=summary_rows,
+        search=search,
+        category=category,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
+    )
+
+    return units_data, filtered_rows
+
+
+@router.get("/summary")
+def get_summary(
+    db: Session = Depends(get_db),
+    search: str = Query(default=""),
+    category: str = Query(default="all"),
+    sort_key: str = Query(default="project_name"),
+    sort_direction: str = Query(default="asc"),
+):
+    units_data, filtered_rows = build_filtered_summary_rows(
+        db=db,
+        search=search,
+        category=category,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
+    )
+
+
     return {
         "total_units": len(units_data),
-        "summary_rows": summary_rows,
+        "summary_rows": filtered_rows,
     }
 
 
 @router.get("/summary/pdf")
-def get_summary_pdf(db: Session = Depends(get_db)):
-    units = db.query(Unit).all()
-    units_data = serialize_units(units)
-    summary_rows = build_summary(units_data)
-    pdf_buffer = generate_summary_pdf(summary_rows)
+def get_summary_pdf(
+    db: Session = Depends(get_db),
+    search: str = Query(default=""),
+    category: str = Query(default="all"),
+    sort_key: str = Query(default="project_name"),
+    sort_direction: str = Query(default="asc"),
+):
+    _, filtered_rows = build_filtered_summary_rows(
+        db=db,
+        search=search,
+        category=category,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
+    )
+
+    pdf_buffer = generate_summary_pdf(filtered_rows)
 
     return StreamingResponse(
         pdf_buffer,
@@ -68,11 +166,23 @@ def get_summary_pdf(db: Session = Depends(get_db)):
 
 
 @router.get("/summary/excel")
-def get_summary_excel(db: Session = Depends(get_db)):
-    units = db.query(Unit).all()
-    units_data = serialize_units(units)
-    summary_rows = build_summary(units_data)
-    excel_buffer = generate_summary_excel(summary_rows)
+def get_summary_excel(
+    db: Session = Depends(get_db),
+    search: str = Query(default=""),
+    category: str = Query(default="all"),
+    sort_key: str = Query(default="project_name"),
+    sort_direction: str = Query(default="asc"),
+):
+    _, filtered_rows = build_filtered_summary_rows(
+        db=db,
+        search=search,
+        category=category,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
+    )
+
+
+    excel_buffer = generate_summary_excel(filtered_rows)
 
     return StreamingResponse(
         excel_buffer,
