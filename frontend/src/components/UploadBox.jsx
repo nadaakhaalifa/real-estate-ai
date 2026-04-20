@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { UploadCloud, FileText } from "lucide-react";
+import { UploadCloud, FileText, X } from "lucide-react";
 import axios from "axios";
 
 const API_URL = "http://127.0.0.1:8000";
@@ -14,15 +14,15 @@ function UploadBox() {
       const combinedFiles = [...prevFiles, ...acceptedFiles];
 
       const uniqueFiles = combinedFiles.filter(
-       (file, index, self) =>
-         index === self.findIndex((f) => f.name === file.name)
+        (file, index, self) =>
+          index === self.findIndex((f) => f.name === file.name)
       );
 
-    return uniqueFiles.slice(0, 50);
-  });
+      return uniqueFiles.slice(0, 50);
+    });
 
-  setStatus("");
-}, []);
+    setStatus("");
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -117,9 +117,23 @@ function UploadBox() {
                   </span>
                 </div>
 
-                <span className="ml-3 shrink-0 text-xs text-green-400">
-                  Ready
-                </span>
+                <div className="ml-3 flex items-center gap-3">
+                  <span className="shrink-0 text-xs text-green-400">
+                    Ready
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFiles((prevFiles) =>
+                        prevFiles.filter((_, fileIndex) => fileIndex !== index)
+                      )
+                    }
+                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-700 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
