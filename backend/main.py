@@ -5,9 +5,20 @@ from backend.routes.upload import router as upload_router
 from backend.routes.search import router as search_router
 from backend.routes.summary import router as summary_router
 from backend.routes import health
+from fastapi.middleware.cors import CORSMiddleware
+
+
 
 # create app instance [backend application]
 app = FastAPI(title="Real Estate AI")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # register routes
 app.include_router(upload_router)
