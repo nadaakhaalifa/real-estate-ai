@@ -3,7 +3,7 @@ import { useDropzone } from "react-dropzone";
 import { UploadCloud, FileText, X } from "lucide-react";
 import axios from "axios";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL;
 
 function UploadBox() {
   const [files, setFiles] = useState([]);
@@ -60,9 +60,16 @@ function UploadBox() {
       setUploaded(true);
       setStatus("Upload successful ✅");
     } catch (error) {
-      console.error(error);
+      console.error("Upload error:", error);
+      console.error("Response data:", error.response?.data);
+      console.error("Status:", error.response?.status);
+
       setUploaded(false);
-      setStatus("Upload failed ❌");
+      setStatus(
+        error.response?.data?.detail
+          ? `Upload failed ❌ ${error.response.data.detail}`
+          : `Upload failed ❌ ${error.message}`
+      );
     }
   };
 

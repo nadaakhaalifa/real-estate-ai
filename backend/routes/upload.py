@@ -26,20 +26,21 @@ def clean_text(value):
 
 
 # parse one excel file and return extracted units + summary
+from io import BytesIO
+
 def parse_single_file(file: UploadFile):
     try:
-        # detect header row dynamically
-        header_row = detect_header_row(file.file)
+        contents = file.file.read()
+        file_buffer = BytesIO(contents)
 
-        # reset pointer after reading
-        file.file.seek(0)
+        # detect header
+        header_row = detect_header_row(file_buffer)
 
-        # load excel into dataframe
-        df = pd.read_excel(file.file, header=header_row)
+        # reset buffer
+        file_buffer.seek(0)
 
-        print("COLUMNS:", [repr(c) for c in df.columns.tolist()])
-        print("DTYPES:")
-        print(df.dtypes)
+        # read excel
+        df = pd.read_excel(file_buffer, header=header_row)
 
     except Exception as e:
         raise HTTPException(
