@@ -8,6 +8,7 @@ const API_URL = "http://127.0.0.1:8000";
 function UploadBox() {
   const [files, setFiles] = useState([]);
   const [status, setStatus] = useState("");
+  const [uploaded, setUploaded] = useState(false);
 
   const onDrop = useCallback((acceptedFiles) => {
     setFiles((prevFiles) => {
@@ -22,6 +23,7 @@ function UploadBox() {
     });
 
     setStatus("");
+    setUploaded(false);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -55,9 +57,11 @@ function UploadBox() {
         },
       });
 
+      setUploaded(true);
       setStatus("Upload successful ✅");
     } catch (error) {
       console.error(error);
+      setUploaded(false);
       setStatus("Upload failed ❌");
     }
   };
@@ -118,8 +122,12 @@ function UploadBox() {
                 </div>
 
                 <div className="ml-3 flex items-center gap-3">
-                  <span className="shrink-0 text-xs text-green-400">
-                    Ready
+                  <span
+                    className={`shrink-0 text-xs ${
+                      uploaded ? "text-emerald-400" : "text-green-400"
+                    }`}
+                  >
+                    {uploaded ? "Uploaded" : "Ready"}
                   </span>
 
                   <button
