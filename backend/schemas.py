@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Any
+from typing import Optional
+
 
 
 # clean extracted unit data 
@@ -20,7 +22,7 @@ class UnitPreview(BaseModel):
     building: str | None = None
     floor_number: str | None = None
     unit_code: str | None = None
-    source_file: str | None = None
+    source_file: Optional[str] = None
     raw_data: dict[str, Any] = Field(default_factory=dict)
     
 # request schema for search endpoint

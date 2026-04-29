@@ -12,7 +12,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState({
-    key: "project_name",
+    key: "source_file",
     direction: "asc",
   });
 
@@ -45,7 +45,14 @@ function App() {
 
   const formatCategory = (value) => {
     if (value === null || value === undefined || value === "") return "-";
-    return `${value} bedroom${Number(value) > 1 ? "s" : ""}`;
+
+    const numberValue = Number(value);
+
+    if (!Number.isNaN(numberValue)) {
+      return `${value} bedroom${numberValue > 1 ? "s" : ""}`;
+    }
+
+    return String(value);
   };
 
   const formatArea = (value) => {
@@ -96,7 +103,9 @@ function App() {
     const nextSort = {
       key,
       direction:
-        sortConfig.key === key && sortConfig.direction === "asc" ? "desc" : "asc",
+        sortConfig.key === key && sortConfig.direction === "asc"
+          ? "desc"
+          : "asc",
     };
 
     setSortConfig(nextSort);
@@ -129,23 +138,21 @@ function App() {
         <div className="h-12 animate-pulse rounded-2xl bg-slate-800" />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-white/5">
-        <div className="grid grid-cols-4 gap-4 border-b border-slate-800 bg-slate-950/95 p-4">
-          <div className="h-4 animate-pulse rounded bg-slate-800" />
-          <div className="h-4 animate-pulse rounded bg-slate-800" />
-          <div className="h-4 animate-pulse rounded bg-slate-800" />
-          <div className="h-4 animate-pulse rounded bg-slate-800" />
+      <div className="overflow-hidden rounded-2xl border border-white/5 bg-slate-950/70">
+        <div className="grid grid-cols-5 gap-4 border-b border-slate-800 p-4">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-4 animate-pulse rounded bg-slate-800" />
+          ))}
         </div>
 
-        {Array.from({ length: 6 }).map((_, index) => (
+        {Array.from({ length: 6 }).map((_, rowIndex) => (
           <div
-            key={index}
-            className="grid grid-cols-4 gap-4 border-b border-slate-800 p-4"
+            key={rowIndex}
+            className="grid grid-cols-5 gap-4 border-b border-slate-800 p-4"
           >
-            <div className="h-4 animate-pulse rounded bg-slate-800" />
-            <div className="h-4 animate-pulse rounded bg-slate-800" />
-            <div className="h-4 animate-pulse rounded bg-slate-800" />
-            <div className="h-4 animate-pulse rounded bg-slate-800" />
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-4 animate-pulse rounded bg-slate-800" />
+            ))}
           </div>
         ))}
       </div>
@@ -154,27 +161,26 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-10 text-white">
-      <div className="mx-auto flex max-w-6xl flex-col items-center">
+      <div className="mx-auto flex max-w-7xl flex-col items-center">
         <h1 className="mb-3 text-center text-4xl font-bold">
           Real Estate Analysis Platform
         </h1>
 
         <p className="mb-10 text-center text-slate-300">
-          Upload Excel files, generate the summary, and review starting price
-          and starting area.
+          Upload Excel files, rename them clearly, generate the summary, and
+          review starting price and starting area.
         </p>
 
         <UploadBox />
 
-        <div className="mt-8 w-full max-w-6xl rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur">
+        <div className="mt-8 w-full max-w-7xl rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">
                 Summary Report
               </h2>
               <p className="mt-1 text-sm text-slate-300">
-                Review the lowest starting price and starting area by project
-                and category.
+                Each row shows which renamed file it came from.
               </p>
             </div>
 
@@ -217,8 +223,6 @@ function App() {
                     className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-center font-semibold text-white transition-all duration-300 hover:scale-105"
                   >
                     <span className="relative z-10">Export PDF</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/40 to-cyan-500/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                    <div className="absolute inset-0 rounded-2xl border border-cyan-400/0 transition-all duration-300 group-hover:border-cyan-400/60" />
                   </a>
 
                   <a
@@ -226,7 +230,6 @@ function App() {
                     className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-3 text-center font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-cyan-500/40"
                   >
                     <span className="relative z-10">Export Excel</span>
-                    <div className="absolute left-[-100%] top-0 h-full w-full bg-white/20 transition-all duration-500 group-hover:left-[100%]" />
                   </a>
                 </div>
               </div>
@@ -236,7 +239,7 @@ function App() {
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search by project name..."
+                    placeholder="Search by file or project name..."
                     value={searchTerm}
                     onChange={handleSearchChange}
                     className="w-full rounded-2xl border border-white/10 bg-slate-950/80 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-cyan-400"
@@ -261,38 +264,47 @@ function App() {
                 </div>
               </div>
 
-              <div className="max-h-[600px] overflow-auto rounded-2xl border border-white/5">
-                <table className="w-full border-collapse text-sm">
-                  <thead className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur">
-                    <tr className="border-b border-slate-700 text-left text-slate-300">
-                      <th className="p-4">
-                        <SortButton label="Project" sortKey="project_name" />
-                      </th>
-                      <th className="p-4">
-                        <SortButton label="Category" sortKey="category_value" />
-                      </th>
-                      <th className="p-4">
-                        <SortButton
-                          label="Starting Price"
-                          sortKey="starting_price"
-                        />
-                      </th>
-                      <th className="p-4">
-                        <SortButton
-                          label="Starting Area"
-                          sortKey="starting_area_m2"
-                        />
-                      </th>
-                    </tr>
-                  </thead>
+              {summaryData.summary_rows.length > 0 ? (
+                <div className="max-h-[600px] overflow-auto rounded-2xl border border-white/5 bg-slate-950/70">
+                  <table className="w-full min-w-[1000px] border-collapse text-sm">
+                    <thead className="sticky top-0 z-10 bg-slate-950">
+                      <tr className="border-b border-slate-700 text-left text-slate-300">
+                        <th className="p-4">
+                          <SortButton label="File" sortKey="source_file" />
+                        </th>
+                        <th className="p-4">
+                          <SortButton label="Project" sortKey="project_name" />
+                        </th>
+                        <th className="p-4">
+                          <SortButton label="Category" sortKey="category_value" />
+                        </th>
+                        <th className="p-4">
+                          <SortButton
+                            label="Starting Price"
+                            sortKey="starting_price"
+                          />
+                        </th>
+                        <th className="p-4">
+                          <SortButton
+                            label="Starting Area"
+                            sortKey="starting_area_m2"
+                          />
+                        </th>
+                      </tr>
+                    </thead>
 
-                  <tbody>
-                    {summaryData.summary_rows.length > 0 ? (
-                      summaryData.summary_rows.map((row, index) => (
+                    <tbody>
+                      {summaryData.summary_rows.map((row, index) => (
                         <tr
-                          key={index}
+                          key={`${row.source_file}-${row.project_name}-${row.category_value}-${index}`}
                           className="border-b border-slate-800 transition duration-300 hover:bg-slate-800/60"
                         >
+                          <td className="p-4">
+                            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
+                              {row.source_file || "Unnamed File"}
+                            </span>
+                          </td>
+
                           <td className="p-4 font-semibold text-white">
                             {row.project_name || "-"}
                           </td>
@@ -311,20 +323,15 @@ function App() {
                             {formatArea(row.starting_area_m2)}
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan="4"
-                          className="p-8 text-center text-sm text-slate-400"
-                        >
-                          No matching rows found.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/5 bg-slate-950/70 p-8 text-center text-sm text-slate-400">
+                  No matching rows found.
+                </div>
+              )}
             </div>
           )}
         </div>

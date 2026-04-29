@@ -34,8 +34,13 @@ def format_category(category_type, category_value):
 
     return str(category_value)
 
-def calculate_dynamic_col_widths(table_data, usable_width, min_width=1.6 * cm, max_width=5.0 * cm):
-    # estimate width from the longest text in each column
+
+def calculate_dynamic_col_widths(
+    table_data,
+    usable_width,
+    min_width=1.8 * cm,
+    max_width=5.5 * cm,
+):
     col_count = len(table_data[0])
     max_lengths = [0] * col_count
 
@@ -44,25 +49,24 @@ def calculate_dynamic_col_widths(table_data, usable_width, min_width=1.6 * cm, m
             cell_text = str(cell) if cell is not None else ""
             max_lengths[i] = max(max_lengths[i], len(cell_text))
 
-    # convert text lengths to proportional widths
     total_length = sum(max_lengths) if sum(max_lengths) > 0 else col_count
-    raw_widths = [(usable_width * length / total_length) for length in max_lengths]
 
-    # clamp widths to avoid too small / too large columns
+    raw_widths = [
+        usable_width * length / total_length
+        for length in max_lengths
+    ]
+
     clamped_widths = [
         max(min_width, min(width, max_width))
         for width in raw_widths
     ]
 
-    # normalize again so final widths fit the page exactly
     total_width = sum(clamped_widths)
     scale = usable_width / total_width if total_width > 0 else 1
 
-    final_widths = [width * scale for width in clamped_widths]
-    return final_widths
+    return [width * scale for width in clamped_widths]
 
 
-# build summary pdf from grouped rows
 def generate_summary_pdf(summary_rows):
     buffer = BytesIO()
 
@@ -100,6 +104,7 @@ def generate_summary_pdf(summary_rows):
     elements = []
 
     report_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+
     elements.append(Paragraph("Real Estate Starting Price Report", title_style))
     elements.append(
         Paragraph(
@@ -110,6 +115,7 @@ def generate_summary_pdf(summary_rows):
     elements.append(Spacer(1, 0.3 * cm))
 
     table_data = [[
+        "Source File",
         "Developer",
         "Project",
         "Category",
@@ -119,19 +125,21 @@ def generate_summary_pdf(summary_rows):
 
     for row in summary_rows:
         table_data.append([
+            row.get("source_file") or "-",
             row.get("developer_name") or "-",
             row.get("project_name") or "-",
             format_category(row.get("category_type"), row.get("category_value")),
             format_price(row.get("starting_price")),
             format_area(row.get("starting_area_m2")),
         ])
+
     usable_width = 27 * cm
     col_widths = calculate_dynamic_col_widths(table_data, usable_width)
-    
+
     table = Table(
         table_data,
         repeatRows=1,
-        colWidths=col_widths
+        colWidths=col_widths,
     )
 
     table.setStyle(TableStyle([
@@ -142,7 +150,12 @@ def generate_summary_pdf(summary_rows):
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.HexColor("#F7F9FC")]),
+        (
+            "ROWBACKGROUNDS",
+            (0, 1),
+            (-1, -1),
+            [colors.whitesmoke, colors.HexColor("#F7F9FC")],
+        ),
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),

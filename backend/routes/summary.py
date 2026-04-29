@@ -14,6 +14,7 @@ router = APIRouter()
 
 
 ALLOWED_SORT_KEYS = {
+    "source_file",
     "project_name",
     "category_value",
     "starting_price",
@@ -42,7 +43,7 @@ def serialize_units(units):
             "building": unit.building,
             "floor_number": unit.floor_number,
             "unit_code": unit.unit_code,
-            "source_file": unit.source_file,
+            "source_file": unit.source_file or (unit.upload.filename if unit.upload else None),
             "raw_data": unit.raw_data,
         })
 
@@ -53,25 +54,28 @@ def filter_and_sort_summary_rows(
     summary_rows,
     search="",
     category="all",
-    sort_key="project_name",
+    sort_key="source_file",
     sort_direction="asc",
 ):
     rows = summary_rows[:]
 
     search = (search or "").strip()
     category = str(category or "all").strip()
-    sort_key = sort_key if sort_key in ALLOWED_SORT_KEYS else "project_name"
+    sort_key = sort_key if sort_key in ALLOWED_SORT_KEYS else "source_file"
     sort_direction = "desc" if str(sort_direction).lower() == "desc" else "asc"
 
-    # filter by search term (project name)
     if search:
         search_lower = search.lower()
+
         rows = [
             row for row in rows
-            if search_lower in str(row.get("project_name") or "").lower()
+            if (
+                search_lower in str(row.get("source_file") or "").lower()
+                or search_lower in str(row.get("project_name") or "").lower()
+                or search_lower in str(row.get("developer_name") or "").lower()
+            )
         ]
 
-    # filter by category
     if category != "all":
         rows = [
             row for row in rows
@@ -83,7 +87,7 @@ def filter_and_sort_summary_rows(
     def sort_value(row):
         value = row.get(sort_key)
 
-        if sort_key == "project_name":
+        if sort_key in {"source_file", "project_name"}:
             return str(value or "").lower()
 
         if sort_key in {"category_value", "starting_price", "starting_area_m2"}:
@@ -99,7 +103,7 @@ def build_filtered_summary_rows(
     db: Session,
     search="",
     category="all",
-    sort_key="project_name",
+    sort_key="source_file",
     sort_direction="asc",
 ):
     units = db.query(Unit).all()
@@ -122,7 +126,7 @@ def get_summary(
     db: Session = Depends(get_db),
     search: str = Query(default=""),
     category: str = Query(default="all"),
-    sort_key: str = Query(default="project_name"),
+    sort_key: str = Query(default="source_file"),
     sort_direction: str = Query(default="asc"),
 ):
     units_data, filtered_rows = build_filtered_summary_rows(
@@ -132,7 +136,6 @@ def get_summary(
         sort_key=sort_key,
         sort_direction=sort_direction,
     )
-
 
     return {
         "total_units": len(units_data),
@@ -145,7 +148,7 @@ def get_summary_pdf(
     db: Session = Depends(get_db),
     search: str = Query(default=""),
     category: str = Query(default="all"),
-    sort_key: str = Query(default="project_name"),
+    sort_key: str = Query(default="source_file"),
     sort_direction: str = Query(default="asc"),
 ):
     _, filtered_rows = build_filtered_summary_rows(
@@ -170,7 +173,7 @@ def get_summary_excel(
     db: Session = Depends(get_db),
     search: str = Query(default=""),
     category: str = Query(default="all"),
-    sort_key: str = Query(default="project_name"),
+    sort_key: str = Query(default="source_file"),
     sort_direction: str = Query(default="asc"),
 ):
     _, filtered_rows = build_filtered_summary_rows(
@@ -180,7 +183,6 @@ def get_summary_excel(
         sort_key=sort_key,
         sort_direction=sort_direction,
     )
-
 
     excel_buffer = generate_summary_excel(filtered_rows)
 

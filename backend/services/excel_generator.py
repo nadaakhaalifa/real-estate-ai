@@ -19,7 +19,6 @@ def format_category(category_type, category_value):
 
 
 def auto_fit_columns(sheet, min_width=12, max_width=40):
-    # size columns based on longest cell content
     for column_cells in sheet.columns:
         max_length = 0
         column_letter = column_cells[0].column_letter
@@ -33,13 +32,13 @@ def auto_fit_columns(sheet, min_width=12, max_width=40):
         sheet.column_dimensions[column_letter].width = adjusted_width
 
 
-# build excel report from summary rows
 def generate_summary_excel(summary_rows):
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = "Summary"
 
     headers = [
+        "Source File",
         "Developer",
         "Project",
         "Category",
@@ -49,7 +48,6 @@ def generate_summary_excel(summary_rows):
 
     sheet.append(headers)
 
-    # style header row
     header_fill = PatternFill(fill_type="solid", fgColor="1F4E78")
     header_font = Font(color="FFFFFF", bold=True)
 
@@ -58,9 +56,9 @@ def generate_summary_excel(summary_rows):
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    # add data rows
     for row in summary_rows:
         sheet.append([
+            row.get("source_file") or "-",
             row.get("developer_name") or "-",
             row.get("project_name") or "-",
             format_category(row.get("category_type"), row.get("category_value")),
@@ -68,17 +66,14 @@ def generate_summary_excel(summary_rows):
             row.get("starting_area_m2"),
         ])
 
-    # center align all cells
     for row in sheet.iter_rows():
         for cell in row:
             cell.alignment = Alignment(horizontal="center", vertical="center")
-        
-    # format numeric columns
-    for row in range(2, sheet.max_row + 1):
-        sheet[f"D{row}"].number_format = '#,##0.00'
-        sheet[f"E{row}"].number_format = '#,##0.00'
 
-    # auto size columns dynamically
+    for row in range(2, sheet.max_row + 1):
+        sheet[f"E{row}"].number_format = "#,##0.00"
+        sheet[f"F{row}"].number_format = "#,##0.00"
+
     auto_fit_columns(sheet)
 
     buffer = BytesIO()

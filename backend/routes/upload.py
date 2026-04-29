@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
 import pandas as pd
 from backend.services.column_mapper import normalize_columns
 from backend.services.value_parser import parse_price, parse_bedrooms, parse_area
@@ -11,12 +11,11 @@ from sqlalchemy.orm import Session
 
 from backend.database import get_db
 from backend.models import Upload, Unit
+from io import BytesIO
 
-# create router
 router = APIRouter()
 
 
-# clean any text value (remove spaces, handle NaN)
 def clean_text(value):
     if pd.isna(value):
         return None
@@ -25,21 +24,15 @@ def clean_text(value):
     return text if text else None
 
 
-# parse one excel file and return extracted units + summary
-from io import BytesIO
-
-def parse_single_file(file: UploadFile):
+def parse_single_file(file: UploadFile, display_name: str):
     try:
         contents = file.file.read()
         file_buffer = BytesIO(contents)
 
-        # detect header
         header_row = detect_header_row(file_buffer)
 
-        # reset buffer
         file_buffer.seek(0)
 
-        # read excel
         df = pd.read_excel(file_buffer, header=header_row)
 
     except Exception as e:
@@ -52,10 +45,8 @@ def parse_single_file(file: UploadFile):
     columns = list(df.columns)
     normalized_columns = normalize_columns(df.columns)
 
-    # track used columns to avoid duplicates
     used_columns = set()
 
-    # detect columns dynamically
     project_column = detect_column(df, "project_name", used_columns)
     if project_column:
         used_columns.add(project_column)
@@ -98,11 +89,9 @@ def parse_single_file(file: UploadFile):
 
     unit_previews = []
 
-    # fix for missing bedroom values (forward fill)
     if bedrooms_column:
         df[bedrooms_column] = df[bedrooms_column].ffill()
 
-    # loop over rows and build structured units
     for _, row in df.iterrows():
         price = parse_price(row[price_column]) if price_column else None
 
@@ -118,11 +107,9 @@ def parse_single_file(file: UploadFile):
         project_name = clean_text(row[project_column]) if project_column else None
         unit_code = clean_text(row[unit_code_column]) if unit_code_column else None
 
-        # fallback: try extracting bedrooms from unit_type
         if bedrooms is None and unit_type:
             bedrooms = parse_bedrooms(unit_type)
 
-        # skip completely empty rows
         if (
             price is None
             and bedrooms is None
@@ -137,9 +124,8 @@ def parse_single_file(file: UploadFile):
         ):
             continue
 
-        # build unit object
         unit = UnitPreview(
-            source_file=file.filename,
+            source_file=display_name,
             developer_name=developer_name,
             location=location,
             stage=stage,
@@ -152,10 +138,14 @@ def parse_single_file(file: UploadFile):
             unit_code=unit_code,
         )
 
-        unit_previews.append(unit.model_dump(exclude_none=True))
+        unit_data = unit.model_dump()
+        unit_data["source_file"] = display_name
+
+        unit_previews.append(unit_data)
 
     return {
         "filename": file.filename,
+        "display_name": display_name,
         "rows": rows,
         "columns": columns,
         "normalized_columns": normalized_columns,
@@ -177,105 +167,45 @@ def parse_single_file(file: UploadFile):
 
 @router.post("/upload")
 async def upload_files(
-    files: Annotated[
-        list[UploadFile],
-        File(..., description="Upload up to 50 Excel files")
-    ],
+    files: Annotated[list[UploadFile], File(...)],
+    display_names: Annotated[list[str], Form(...)],
     db: Session = Depends(get_db)
 ):
-    # -----------------------------
-    # VALIDATION
-    # -----------------------------
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
 
-    if len(files) > 50:
-        raise HTTPException(status_code=400, detail="Max 50 files allowed")
+    if len(display_names) != len(files):
+        raise HTTPException(status_code=400, detail="Mismatch files and names")
 
-    allowed_extensions = (".xlsx", ".xls")
-
-    for file in files:
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="One uploaded file has no filename")
-
-        if not file.filename.lower().endswith(allowed_extensions):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported file type: {file.filename}"
-            )
-
-    # -----------------------------
-    #  RESET CURRENT DATASET
-    # -----------------------------
     db.query(Unit).delete()
     db.query(Upload).delete()
     db.commit()
 
-    # -----------------------------
-    # PROCESS FILES
-    # -----------------------------
-    total_units_inserted = 0
-    uploaded_files_summary = []
-    sample_units = []
+    for file, display_name in zip(files, display_names):
+        result = parse_single_file(file, display_name)
 
-    for file in files:
-        result = parse_single_file(file)
-
-        # create upload record
-        upload_record = Upload(filename=result["filename"])
+        upload_record = Upload(filename=display_name)
         db.add(upload_record)
         db.flush()
 
-        # insert units
         for unit_data in result["units"]:
             unit = Unit(
                 upload_id=upload_record.id,
                 developer_name=unit_data.get("developer_name"),
                 project_name=unit_data.get("project_name"),
                 location=unit_data.get("location"),
-                district=unit_data.get("district"),
                 stage=unit_data.get("stage"),
                 unit_type=unit_data.get("unit_type"),
                 bedrooms=unit_data.get("bedrooms"),
-                bathrooms=unit_data.get("bathrooms"),
                 area_m2=unit_data.get("area_m2"),
                 price_total=unit_data.get("price_total"),
-                price_per_m2=unit_data.get("price_per_m2"),
-                delivery_date=unit_data.get("delivery_date"),
-                finishing_status=unit_data.get("finishing_status"),
                 building=unit_data.get("building"),
-                floor_number=unit_data.get("floor_number"),
                 unit_code=unit_data.get("unit_code"),
-                source_file=unit_data.get("source_file"),
+                source_file=display_name,
                 raw_data=unit_data.get("raw_data", {}),
             )
             db.add(unit)
 
-        total_units_inserted += len(result["units"])
-
-        uploaded_files_summary.append({
-            "filename": result["filename"],
-            "rows": result["rows"],
-            "units_extracted": len(result["units"]),
-            "detected_columns": result["detected_columns"],
-        })
-
-        # keep sample (max 10)
-        if len(sample_units) < 10:
-            remaining = 10 - len(sample_units)
-            sample_units.extend(result["units"][:remaining])
-
     db.commit()
 
-    total_units_in_db = db.query(Unit).count()
-
-    # -----------------------------
-    # RESPONSE
-    # -----------------------------
-    return {
-        "files_uploaded": len(files),
-        "total_units_inserted_now": total_units_inserted,
-        "total_units_in_db": total_units_in_db,
-        "files": uploaded_files_summary,
-        "sample_units": sample_units,
-    }
+    return {"message": "Upload successful"}
