@@ -24,12 +24,31 @@ def clean_text(value):
     return text if text else None
 
 
-def find_category_column(df):
-    for column in df.columns:
-        if "category" in str(column).lower():
-            return column
+def find_bedroom_source_columns(df):
+    bedroom_source_columns = []
 
-    return None
+    keywords = [
+        "bed",
+        "bedroom",
+        "bedrooms",
+        "br",
+        "bd",
+        "category",
+        "layout",
+        "unit type",
+        "type",
+        "description",
+        "unit name",
+        "model",
+    ]
+
+    for column in df.columns:
+        column_name = str(column).lower().strip()
+
+        if any(keyword in column_name for keyword in keywords):
+            bedroom_source_columns.append(column)
+
+    return bedroom_source_columns
 
 
 def parse_single_file(file: UploadFile, display_name: str):
@@ -71,7 +90,7 @@ def parse_single_file(file: UploadFile, display_name: str):
     if unit_type_column:
         used_columns.add(unit_type_column)
 
-    category_column = find_category_column(df)
+    bedroom_source_columns = find_bedroom_source_columns(df)
 
     developer_column = detect_column(df, "developer_name", used_columns)
     if developer_column:
@@ -102,8 +121,9 @@ def parse_single_file(file: UploadFile, display_name: str):
     if bedrooms_column:
         df[bedrooms_column] = df[bedrooms_column].ffill()
 
-    if category_column and category_column != bedrooms_column:
-        df[category_column] = df[category_column].ffill()
+    for column in bedroom_source_columns:
+        if column != bedrooms_column:
+            df[column] = df[column].ffill()
 
     for _, row in df.iterrows():
         price = parse_price(row[price_column]) if price_column else None
@@ -124,10 +144,11 @@ def parse_single_file(file: UploadFile, display_name: str):
         if bedrooms_column:
             bedroom_sources.append(row[bedrooms_column])
 
-        if category_column and category_column != bedrooms_column:
-            bedroom_sources.append(row[category_column])
+        for column in bedroom_source_columns:
+            if column != bedrooms_column:
+                bedroom_sources.append(row[column])
 
-        if unit_type_column:
+        if unit_type_column and unit_type_column not in bedroom_source_columns:
             bedroom_sources.append(row[unit_type_column])
 
         for raw_bedroom in bedroom_sources:
@@ -185,7 +206,7 @@ def parse_single_file(file: UploadFile, display_name: str):
             "project_name": project_column,
             "unit_code": unit_code_column,
             "building": building_column,
-            "category": category_column,
+            "bedroom_source_columns": bedroom_source_columns,
         },
         "units": unit_previews,
     }
