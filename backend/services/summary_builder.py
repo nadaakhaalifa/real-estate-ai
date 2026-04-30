@@ -13,7 +13,6 @@ def build_summary(units):
         unit_type_text = str(unit_type).strip() if unit_type else ""
         unit_type_lower = unit_type_text.lower()
 
-        # Unit types that should NOT become bedrooms
         if "villa" in unit_type_lower:
             category_type = "unit_type"
             category_value = "Villa"
@@ -26,9 +25,9 @@ def build_summary(units):
             category_type = "unit_type"
             category_value = "Office"
 
-        elif "apartment" in unit_type_lower:
+        elif "chalet" in unit_type_lower:
             category_type = "unit_type"
-            category_value = "Apartment"
+            category_value = "Chalet"
 
         elif (
             "town house" in unit_type_lower
@@ -48,10 +47,13 @@ def build_summary(units):
             category_type = "unit_type"
             category_value = "Penthouse"
 
-        # Bedrooms should be used only when unit_type is not a clear type
         elif bedrooms is not None:
             category_type = "bedrooms"
             category_value = int(bedrooms)
+
+        elif "apartment" in unit_type_lower:
+            category_type = "unit_type"
+            category_value = "Apartment"
 
         elif unit_type_text:
             category_type = "unit_type"
