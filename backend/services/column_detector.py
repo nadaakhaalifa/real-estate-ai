@@ -301,6 +301,7 @@ def _looks_like_unit_type_value(value):
 
     patterns = [
         r"\bstudio\b",
+        r"\bvilla\b",
         r"\bapartment\b",
         r"\bflat\b",
         r"\bloft\b",
