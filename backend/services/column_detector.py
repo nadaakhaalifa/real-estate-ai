@@ -279,8 +279,9 @@ def _looks_like_bedroom_value(value):
     if "studio" in text:
         return True
 
-    return bool(re.search(r"\b\d+\s*(bed|beds|bedroom|bedrooms|br|bd)\b", text))
-
+    return bool(
+        re.search(r"\b\d+\s*[- ]?\s*(bed|beds|bedroom|bedrooms|br|bd)\b", text)
+    )
 
 def _looks_like_unit_type_value(value):
     if value is None:

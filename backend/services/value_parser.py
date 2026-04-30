@@ -31,7 +31,7 @@ def parse_price(value):
     return None
 
 
-# parse bedroom text like 3 BR, 4 bedrooms, or plain numbers like 1 / 2 / 3
+# parse bedroom text like 3 BR, 4 bedrooms, D-2 Bed-Typical
 def parse_bedrooms(value):
     if value is None:
         return None
@@ -48,13 +48,26 @@ def parse_bedrooms(value):
 
     text = str(value).lower().strip()
 
-    import re
-    match = re.search(r'\d+', text)
+    if not text:
+        return None
+
+    # Studio should be 0 bedrooms
+    if "studio" in text:
+        return 0
+
+    match = re.search(
+        r"\b(\d+)\s*[- ]?\s*(bed|beds|bedroom|bedrooms|br|bd)\b",
+        text
+    )
+
     if match:
-        return int(match.group())
+        return int(match.group(1))
+
+    # Plain number only, like 1 / 2 / 3
+    if re.fullmatch(r"\d+", text):
+        return int(text)
 
     return None
-
 
 # parse area like 120 sqm or 150.5
 def parse_area(value):
