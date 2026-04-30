@@ -28,6 +28,18 @@ def build_summary(units):
         elif "chalet" in unit_type_lower:
             category_type = "unit_type"
             category_value = "Chalet"
+            
+        elif "penthouse" in unit_type_lower:
+            category_type = "unit_type"
+            category_value = "Penthouse"
+
+        elif "cabin" in unit_type_lower:
+            category_type = "unit_type"
+            category_value = "Cabins"
+
+        elif "twin house" in unit_type_lower:
+            category_type = "unit_type"
+            category_value = "Twin House"
 
         elif (
             "town house" in unit_type_lower

@@ -42,11 +42,102 @@ def find_bedroom_source_columns(df):
 
     for column in df.columns:
         column_name = str(column).lower().strip()
+        name_matches = any(keyword in column_name for keyword in keywords)
 
-        if any(keyword in column_name for keyword in keywords):
+        sample_values = df[column].dropna().head(50).tolist()
+        value_matches = any(parse_bedrooms(value) is not None for value in sample_values)
+
+        if name_matches or value_matches:
             bedroom_source_columns.append(column)
 
     return bedroom_source_columns
+
+
+def find_unit_type_source_columns(df):
+    unit_type_source_columns = []
+
+    keywords = [
+        "category",
+        "layout",
+        "description",
+        "unit name",
+        "model",
+        "unit type",
+        "type",
+    ]
+
+    special_keywords = [
+        "penthouse",
+        "villa",
+        "studio",
+        "office",
+        "offices",
+        "chalet",
+        "cabin",
+        "cabins",
+        "twin house",
+        "town house",
+        "townhouse",
+        "duplex",
+        "family home",
+    ]
+
+    for column in df.columns:
+        column_name = str(column).lower().strip()
+        name_matches = any(keyword in column_name for keyword in keywords)
+
+        sample_values = df[column].dropna().head(50).tolist()
+        sample_text = " ".join(str(value).lower() for value in sample_values)
+
+        value_matches = any(keyword in sample_text for keyword in special_keywords)
+
+        if name_matches or value_matches:
+            unit_type_source_columns.append(column)
+
+    return unit_type_source_columns
+
+
+def detect_special_unit_type(values):
+    text = " ".join(
+        str(value).lower()
+        for value in values
+        if value is not None and str(value).strip()
+    )
+
+    # Order matters: more specific types first
+    if "penthouse" in text:
+        return "Penthouse"
+
+    if "villa" in text:
+        return "Villa"
+
+    if "studio" in text:
+        return "Studio"
+
+    if "office" in text or "offices" in text:
+        return "Office"
+
+    if "chalet" in text:
+        return "Chalet"
+
+    if "cabin" in text or "cabins" in text:
+        return "Cabins"
+
+    if "duplex" in text:
+        return "Duplex"
+
+    if "twin house" in text:
+        return "Twin House"
+
+    if "town house" in text or "townhouse" in text:
+        return "Town House"
+
+    # For rows like: 97H-Family Home-with Garden
+    # It should remain an apartment, not become unknown.
+    if "family home" in text:
+        return "Apartment"
+
+    return None
 
 
 def parse_single_file(file: UploadFile, display_name: str):
@@ -55,7 +146,6 @@ def parse_single_file(file: UploadFile, display_name: str):
         file_buffer = BytesIO(contents)
 
         header_row = detect_header_row(file_buffer)
-
         file_buffer.seek(0)
 
         df = pd.read_excel(file_buffer, header=header_row)
@@ -89,6 +179,7 @@ def parse_single_file(file: UploadFile, display_name: str):
         used_columns.add(unit_type_column)
 
     bedroom_source_columns = find_bedroom_source_columns(df)
+    unit_type_source_columns = find_unit_type_source_columns(df)
 
     developer_column = detect_column(df, "developer_name", used_columns)
     if developer_column:
@@ -123,6 +214,9 @@ def parse_single_file(file: UploadFile, display_name: str):
         if column != bedrooms_column:
             df[column] = df[column].ffill()
 
+    for column in unit_type_source_columns:
+        df[column] = df[column].ffill()
+
     for _, row in df.iterrows():
         price = parse_price(row[price_column]) if price_column else None
         area = parse_area(row[area_column]) if area_column else None
@@ -135,8 +229,6 @@ def parse_single_file(file: UploadFile, display_name: str):
         project_name = clean_text(row[project_column]) if project_column else None
         unit_code = clean_text(row[unit_code_column]) if unit_code_column else None
 
-        bedrooms = None
-
         bedroom_sources = []
 
         if bedrooms_column:
@@ -146,10 +238,30 @@ def parse_single_file(file: UploadFile, display_name: str):
             if column != bedrooms_column:
                 bedroom_sources.append(row[column])
 
+        bedrooms = None
         for raw_bedroom in bedroom_sources:
             bedrooms = parse_bedrooms(raw_bedroom)
             if bedrooms is not None:
                 break
+
+        unit_type_sources = [
+            unit_type,
+            project_name,
+            building,
+            unit_code,
+        ]
+
+        for column in unit_type_source_columns:
+            unit_type_sources.append(row[column])
+
+        for column in bedroom_source_columns:
+            if column not in unit_type_source_columns:
+                unit_type_sources.append(row[column])
+
+        special_unit_type = detect_special_unit_type(unit_type_sources)
+
+        if special_unit_type:
+            unit_type = special_unit_type
 
         if (
             price is None
@@ -202,6 +314,7 @@ def parse_single_file(file: UploadFile, display_name: str):
             "unit_code": unit_code_column,
             "building": building_column,
             "bedroom_source_columns": bedroom_source_columns,
+            "unit_type_source_columns": unit_type_source_columns,
         },
         "units": unit_previews,
     }

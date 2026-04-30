@@ -31,7 +31,6 @@ def parse_price(value):
     return None
 
 
-# parse bedroom text like 3 BR, 4 bedrooms, D-2 Bed-Typical
 def parse_bedrooms(value):
     if value is None:
         return None
@@ -43,9 +42,6 @@ def parse_bedrooms(value):
     except:
         pass
 
-    if isinstance(value, (int, float)):
-        return int(value)
-
     text = str(value).lower().strip()
 
     if not text:
@@ -55,15 +51,14 @@ def parse_bedrooms(value):
         return 0
 
     match = re.search(
-        r"\b(\d+)\s*[- ]?\s*(bed|beds|bedroom|bedrooms|br|bd)\b",
+        r"\b(\d+)\s*[- ]?\s*(bed|beds|bedroom|bedrooms|br|bd|b)\b",
         text
     )
 
     if match:
-        return int(match.group(1))
-
-    if re.fullmatch(r"\d+", text):
-        return int(text)
+        bedroom_count = int(match.group(1))
+        if 0 <= bedroom_count <= 10:
+            return bedroom_count
 
     return None
 
