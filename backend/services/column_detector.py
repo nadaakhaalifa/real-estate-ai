@@ -17,7 +17,7 @@ def score_column(column_name, sample_values, target_field):
     if target_field == "price_total":
         score += _score_name_keywords(
             name,
-            ["price", "original price", "selling price", "sale price", "total price", "unit price"],
+            ["price", "original price", "selling price", "sale price", "total price", "unit price","Inventory Price","Asking Price"],
             4,
         )
         score += sum(1 for v in clean_values if _looks_numeric(v))
@@ -40,10 +40,10 @@ def score_column(column_name, sample_values, target_field):
         score -= sum(2 for v in clean_values if _looks_like_datetime_value(v))
 
     elif target_field == "bedrooms":
-        score += _score_name_keywords(name, ["bed", "bedroom", "bedrooms", "br","no of bedrooms", "no. of bedrooms","number of bedrooms",], 6)
+        score += _score_name_keywords(name, ["bed", "bedroom", "bedrooms", "br","no of bedrooms", "no. of bedrooms","number of bedrooms", "unit type", "Usage Type" ], 6)
         score += sum(4 for v in clean_values if _looks_like_bedroom_value(v))
 
-        score -= sum(3 for v in clean_values if _looks_like_unit_code_value(v))
+        score += sum(2 for v in clean_values if _looks_like_unit_code_value(v))
         score -= sum(2 for v in clean_values if _looks_like_datetime_value(v))
 
     elif target_field == "developer_name":
