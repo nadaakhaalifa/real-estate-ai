@@ -61,7 +61,7 @@ def generate_summary_excel(summary_rows):
             row.get("source_file") or "-",
             row.get("developer_name") or "-",
             row.get("project_name") or "-",
-            format_category(row.get("category_type"), row.get("category_value")),
+            row.get("category_value") or "-",  
             row.get("starting_price"),
             row.get("starting_area_m2"),
         ])
