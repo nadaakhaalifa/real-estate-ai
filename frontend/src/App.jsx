@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowUpDown, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, Search, SlidersHorizontal, X } from "lucide-react";
 import UploadBox from "./components/UploadBox";
 import api from "./api/client";
 
@@ -9,7 +9,10 @@ function App() {
   const [summaryData, setSummaryData] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState({
     key: "source_file",
@@ -17,7 +20,7 @@ function App() {
   });
 
   const handleGetSummary = async (
-    nextSearch = searchTerm,
+    nextSearch = appliedSearch,
     nextCategory = categoryFilter,
     nextSort = sortConfig
   ) => {
@@ -40,6 +43,30 @@ function App() {
       setSummaryError("Failed to load summary.");
     } finally {
       setLoadingSummary(false);
+    }
+  };
+
+  const handleSearchSubmit = async () => {
+    const cleanSearch = searchInput.trim();
+    setAppliedSearch(cleanSearch);
+
+    if (summaryData) {
+      await handleGetSummary(cleanSearch, categoryFilter, sortConfig);
+    }
+  };
+
+  const handleClearSearch = async () => {
+    setSearchInput("");
+    setAppliedSearch("");
+
+    if (summaryData) {
+      await handleGetSummary("", categoryFilter, sortConfig);
+    }
+  };
+
+  const handleSearchKeyDown = async (e) => {
+    if (e.key === "Enter") {
+      await handleSearchSubmit();
     }
   };
 
@@ -75,27 +102,18 @@ function App() {
   }, [summaryData]);
 
   const exportQuery = new URLSearchParams({
-    search: searchTerm,
+    search: appliedSearch,
     category: categoryFilter,
     sort_key: sortConfig.key,
     sort_direction: sortConfig.direction,
   }).toString();
-
-  const handleSearchChange = async (e) => {
-    const newValue = e.target.value;
-    setSearchTerm(newValue);
-
-    if (summaryData) {
-      await handleGetSummary(newValue, categoryFilter, sortConfig);
-    }
-  };
 
   const handleCategoryChange = async (e) => {
     const newValue = e.target.value;
     setCategoryFilter(newValue);
 
     if (summaryData) {
-      await handleGetSummary(searchTerm, newValue, sortConfig);
+      await handleGetSummary(appliedSearch, newValue, sortConfig);
     }
   };
 
@@ -111,7 +129,7 @@ function App() {
     setSortConfig(nextSort);
 
     if (summaryData) {
-      await handleGetSummary(searchTerm, categoryFilter, nextSort);
+      await handleGetSummary(appliedSearch, categoryFilter, nextSort);
     }
   };
 
@@ -234,16 +252,36 @@ function App() {
                 </div>
               </div>
 
-              <div className="mb-6 grid gap-3 md:grid-cols-2">
+              <div className="mb-6 grid gap-3 lg:grid-cols-[1fr_auto_1fr]">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     placeholder="Search by file or project name..."
-                    value={searchTerm}
-                    onChange={handleSearchChange}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
                     className="w-full rounded-2xl border border-white/10 bg-slate-950/80 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-cyan-400"
                   />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSearchSubmit}
+                    className="rounded-2xl bg-cyan-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-400"
+                  >
+                    Search
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear
+                  </button>
                 </div>
 
                 <div className="relative">
@@ -263,6 +301,15 @@ function App() {
                   </select>
                 </div>
               </div>
+
+              {appliedSearch && (
+                <p className="mb-4 text-xs text-slate-400">
+                  Showing results for:{" "}
+                  <span className="font-semibold text-cyan-300">
+                    {appliedSearch}
+                  </span>
+                </p>
+              )}
 
               {summaryData.summary_rows.length > 0 ? (
                 <div className="max-h-[600px] overflow-auto rounded-2xl border border-white/5 bg-slate-950/70">

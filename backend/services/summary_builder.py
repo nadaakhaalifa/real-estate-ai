@@ -1,76 +1,61 @@
+from collections import defaultdict
+
+
 def build_summary(units):
-    grouped = {}
+    groups = defaultdict(list)
 
     for unit in units:
-        source_file = unit.get("source_file") or "Unnamed File"
-        developer = unit.get("developer_name")
-        project = unit.get("project_name")
+        project_name = unit.get("project_name") or "Unknown Project"
+        source_file = unit.get("source_file") or "Unknown File"
+
         bedrooms = unit.get("bedrooms")
         unit_type = unit.get("unit_type")
-        price = unit.get("price_total")
 
-        if project is None:
-            continue
+        if bedrooms is not None:
+            category_type = "bedrooms"
+            category_value = int(bedrooms)
+        elif unit_type:
+            category_type = "unit_type"
+            category_value = str(unit_type).strip()
+        else:
+            category_type = "unit_type"
+            category_value = "Unit"
 
-        category_type = "bedrooms" if bedrooms is not None else "unit_type"
-        category_value = bedrooms if bedrooms is not None else unit_type
+        key = (
+            source_file,
+            project_name,
+            category_type,
+            category_value,
+        )
 
-        if category_value is None:
-            continue
-
-        if price is None:
-            continue
-
-        key = (source_file, developer, project, category_type, category_value)
-
-        if key not in grouped:
-            grouped[key] = {
-                "source_file": source_file,
-                "developer_name": developer,
-                "project_name": project,
-                "category_type": category_type,
-                "category_value": category_value,
-                "units": [],
-            }
-
-        grouped[key]["units"].append(unit)
+        groups[key].append(unit)
 
     summary_rows = []
 
-    for group in grouped.values():
-        units_in_group = group["units"]
+    for (source_file, project_name, category_type, category_value), group_units in groups.items():
+        valid_price_units = [
+            unit for unit in group_units
+            if unit.get("price_total") is not None
+        ]
 
-        if not units_in_group:
+        if not valid_price_units:
             continue
 
-        starting_unit = min(units_in_group, key=lambda x: x["price_total"])
+        cheapest_unit = min(
+            valid_price_units,
+            key=lambda unit: float(unit.get("price_total") or 0)
+        )
+
+        starting_price = cheapest_unit.get("price_total")
+        starting_area = cheapest_unit.get("area_m2")
 
         summary_rows.append({
-            "source_file": group["source_file"],
-            "developer_name": group["developer_name"],
-            "project_name": group["project_name"],
-            "category_type": group["category_type"],
-            "category_value": group["category_value"],
-            "starting_price": round(starting_unit["price_total"], 2)
-            if starting_unit.get("price_total") is not None
-            else None,
-            "starting_area_m2": round(starting_unit["area_m2"], 2)
-            if starting_unit.get("area_m2") is not None
-            else None,
-            "unit_code": starting_unit.get("unit_code"),
-            "building": starting_unit.get("building"),
-            "floor_number": starting_unit.get("floor_number"),
-            "unit_type": starting_unit.get("unit_type"),
+            "source_file": source_file,
+            "project_name": project_name,
+            "category_type": category_type,
+            "category_value": category_value,
+            "starting_price": starting_price,
+            "starting_area_m2": starting_area,
         })
-
-    summary_rows = sorted(
-        summary_rows,
-        key=lambda x: (
-            x["source_file"] or "",
-            x["project_name"] or "",
-            x["category_type"] or "",
-            str(x["category_value"]),
-        ),
-    )
 
     return summary_rows
