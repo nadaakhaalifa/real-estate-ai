@@ -28,7 +28,6 @@ def score_column(column_name, sample_values, target_field):
                 "pricing structure",
                 "unit total",
                 "total with finishing",
-                "total unit",
                 "amount",
             ],
             4,
@@ -37,8 +36,6 @@ def score_column(column_name, sample_values, target_field):
         if "grand total" in name:
             score += 25
         if "pricing structure" in name:
-            score += 15
-        if "unit total" in name:
             score += 15
 
         score += sum(1 for v in clean_values if _looks_numeric(v))
@@ -109,11 +106,11 @@ def score_column(column_name, sample_values, target_field):
 
         if "unit type" in name:
             score += 25
-        if name == "category" or "category" in name:
+
+        if "category" in name:
             score += 10
 
-        score += sum(5 for v in clean_values if _looks_like_unit_type_value(v))
-        score += sum(4 for v in clean_values if extract_unit_type(v) is not None)
+        score += sum(4 for v in clean_values if _looks_like_unit_type_value(v))
         score += _category_column_score(text_values)
 
         score -= sum(4 for v in clean_values if _looks_like_unit_code_value(v))
@@ -154,12 +151,16 @@ def score_column(column_name, sample_values, target_field):
 
     elif target_field == "project_name":
         score += _score_name_keywords(name, ["project", "project name", "compound", "development"], 6)
+
+        if name == "project" or "project name" in name:
+            score += 30
+
         score += sum(2 for v in clean_values if _looks_like_project_name(v))
         score += _project_like_column_score(text_values)
         score += _repetition_score(text_values)
 
         score -= _category_column_score(text_values)
-        score -= sum(4 for v in clean_values if _looks_like_unit_type_value(v))
+        score -= sum(3 for v in clean_values if _looks_like_unit_type_value(v))
         score -= sum(3 for v in clean_values if _looks_like_building_value(v))
         score -= sum(4 for v in clean_values if _looks_like_unit_code_value(v))
         score -= sum(5 for v in clean_values if _looks_like_hash_value(v))
@@ -218,64 +219,6 @@ def detect_column(df, target_field, excluded_columns=None):
     return best_column
 
 
-def extract_unit_type(value):
-    if value is None:
-        return None
-
-    text = str(value).strip()
-    if not text:
-        return None
-
-    bedroom_match = re.search(
-        r"\b(studio|\d+\s*(bed|beds|bedroom|bedrooms|br|bd))\b",
-        text,
-        re.IGNORECASE,
-    )
-
-    if bedroom_match:
-        return bedroom_match.group(1).title()
-
-    parts = re.split(r"[-_/|]", text)
-    parts = [p.strip() for p in parts if p.strip()]
-
-    useful_parts = [
-        p for p in parts
-        if not re.fullmatch(r"[a-zA-Z]|\d+", p)
-        and not _looks_numeric(p)
-        and not _looks_like_unit_code_value(p)
-    ]
-
-    if useful_parts:
-        return useful_parts[-1].title()
-
-    return text.title()
-
-
-def extract_bedrooms(value):
-    if value is None:
-        return None
-
-    text = str(value).lower().strip()
-    if not text:
-        return None
-
-    if "studio" in text:
-        return 0
-
-    match = re.search(r"\b(\d+)\s*(bed|beds|bedroom|bedrooms|br|bd)\b", text)
-    if match:
-        number = int(match.group(1))
-        if 0 <= number <= 10:
-            return number
-
-    if re.fullmatch(r"\d+", text):
-        number = int(text)
-        if 0 <= number <= 10:
-            return number
-
-    return None
-
-
 def _score_name_keywords(column_name, keywords, weight=2):
     score = 0
     column_name = str(column_name).lower()
@@ -326,7 +269,17 @@ def _looks_like_datetime_value(value):
 
 
 def _looks_like_bedroom_value(value):
-    return extract_bedrooms(value) is not None
+    if value is None:
+        return False
+
+    text = str(value).lower().strip()
+    if not text:
+        return False
+
+    if "studio" in text:
+        return True
+
+    return bool(re.search(r"\b\d+\s*(bed|beds|bedroom|bedrooms|br|bd)\b", text))
 
 
 def _looks_like_unit_type_value(value):
@@ -337,9 +290,6 @@ def _looks_like_unit_type_value(value):
     if not text:
         return False
 
-    if extract_bedrooms(text) is not None:
-        return True
-
     if _looks_numeric(text):
         return False
 
@@ -349,12 +299,30 @@ def _looks_like_unit_type_value(value):
     if _looks_like_unit_code_value(text):
         return False
 
-    words = text.split()
+    patterns = [
+        r"\bstudio\b",
+        r"\bapartment\b",
+        r"\bflat\b",
+        r"\bloft\b",
+        r"\bduplex\b",
+        r"\bpenthouse\b",
+        r"\bvilla\b",
+        r"\btown\s*house\b",
+        r"\btownhouse\b",
+        r"\btwin\s*house\b",
+        r"\bchalet\b",
+        r"\bretail\b",
+        r"\boffice\b",
+        r"\bclinic\b",
+        r"\bcommercial\b",
+        r"\bf&b\b",
+        r"\bfood\b",
+        r"\badmin\b",
+        r"\bmedical\b",
+        r"\b\d+\s*(bed|beds|bedroom|bedrooms|br|bd)\b",
+    ]
 
-    if 1 <= len(words) <= 6:
-        return True
-
-    return False
+    return any(re.search(pattern, text) for pattern in patterns)
 
 
 def _looks_like_location_value(value):
@@ -436,9 +404,6 @@ def _looks_like_project_name(value):
     if _looks_like_building_value(text):
         return False
 
-    if _looks_like_unit_type_value(text):
-        return False
-
     if _looks_like_datetime_value(text_lower):
         return False
 
@@ -446,7 +411,7 @@ def _looks_like_project_name(value):
         return False
 
     words = text_lower.split()
-    return 1 <= len(words) <= 5
+    return 1 <= len(words) <= 6
 
 
 def _looks_like_building_value(value):
@@ -581,8 +546,10 @@ def _project_like_column_score(text_values):
     avg_words = sum(len(v.split()) for v in unique_values) / len(unique_values)
 
     score = 0
+
     if avg_words >= 2:
         score += 2
+
     if len(unique_values) >= 3:
         score += 2
 
@@ -600,8 +567,10 @@ def _organization_column_score(text_values):
     avg_words = sum(len(v.split()) for v in unique_values) / len(unique_values)
 
     score = 0
+
     if 1 <= avg_words <= 4:
         score += 1
+
     if len(unique_values) <= 12:
         score += 1
 
@@ -613,6 +582,7 @@ def _looks_like_hash_value(value):
         return False
 
     text = str(value).strip().lower()
+
     if not text:
         return False
 

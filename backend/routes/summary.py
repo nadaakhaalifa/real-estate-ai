@@ -50,6 +50,21 @@ def serialize_units(units):
     return units_data
 
 
+def category_sort_value(value):
+    if value is None:
+        return (2, "")
+
+    text = str(value).strip().lower()
+
+    if isinstance(value, int):
+        return (0, value)
+
+    if text.isdigit():
+        return (0, int(text))
+
+    return (1, text)
+
+
 def filter_and_sort_summary_rows(
     summary_rows,
     search="",
@@ -90,10 +105,13 @@ def filter_and_sort_summary_rows(
         if sort_key in {"source_file", "project_name"}:
             return str(value or "").lower()
 
-        if sort_key in {"category_value", "starting_price", "starting_area_m2"}:
-            return value if value is not None else 0
+        if sort_key == "category_value":
+            return category_sort_value(value)
 
-        return value
+        if sort_key in {"starting_price", "starting_area_m2"}:
+            return float(value) if value is not None else 0.0
+
+        return str(value or "").lower()
 
     rows.sort(key=sort_value, reverse=reverse)
     return rows
