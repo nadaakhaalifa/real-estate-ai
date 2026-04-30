@@ -24,6 +24,14 @@ def clean_text(value):
     return text if text else None
 
 
+def find_category_column(df):
+    for column in df.columns:
+        if "category" in str(column).lower():
+            return column
+
+    return None
+
+
 def parse_single_file(file: UploadFile, display_name: str):
     try:
         contents = file.file.read()
@@ -63,6 +71,8 @@ def parse_single_file(file: UploadFile, display_name: str):
     if unit_type_column:
         used_columns.add(unit_type_column)
 
+    category_column = find_category_column(df)
+
     developer_column = detect_column(df, "developer_name", used_columns)
     if developer_column:
         used_columns.add(developer_column)
@@ -92,11 +102,11 @@ def parse_single_file(file: UploadFile, display_name: str):
     if bedrooms_column:
         df[bedrooms_column] = df[bedrooms_column].ffill()
 
+    if category_column and category_column != bedrooms_column:
+        df[category_column] = df[category_column].ffill()
+
     for _, row in df.iterrows():
         price = parse_price(row[price_column]) if price_column else None
-
-        raw_bedroom = row[bedrooms_column] if bedrooms_column else None
-        bedrooms = parse_bedrooms(raw_bedroom) if bedrooms_column else None
         area = parse_area(row[area_column]) if area_column else None
 
         location = clean_text(row[location_column]) if location_column else None
@@ -107,8 +117,23 @@ def parse_single_file(file: UploadFile, display_name: str):
         project_name = clean_text(row[project_column]) if project_column else None
         unit_code = clean_text(row[unit_code_column]) if unit_code_column else None
 
-        if bedrooms is None and unit_type:
-            bedrooms = parse_bedrooms(unit_type)
+        bedrooms = None
+
+        bedroom_sources = []
+
+        if bedrooms_column:
+            bedroom_sources.append(row[bedrooms_column])
+
+        if category_column and category_column != bedrooms_column:
+            bedroom_sources.append(row[category_column])
+
+        if unit_type_column:
+            bedroom_sources.append(row[unit_type_column])
+
+        for raw_bedroom in bedroom_sources:
+            bedrooms = parse_bedrooms(raw_bedroom)
+            if bedrooms is not None:
+                break
 
         if (
             price is None
@@ -160,6 +185,7 @@ def parse_single_file(file: UploadFile, display_name: str):
             "project_name": project_column,
             "unit_code": unit_code_column,
             "building": building_column,
+            "category": category_column,
         },
         "units": unit_previews,
     }

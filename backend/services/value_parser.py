@@ -51,7 +51,6 @@ def parse_bedrooms(value):
     if not text:
         return None
 
-    # Studio should be 0 bedrooms
     if "studio" in text:
         return 0
 
@@ -63,7 +62,6 @@ def parse_bedrooms(value):
     if match:
         return int(match.group(1))
 
-    # Plain number only, like 1 / 2 / 3
     if re.fullmatch(r"\d+", text):
         return int(text)
 
