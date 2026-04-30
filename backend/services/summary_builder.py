@@ -10,13 +10,19 @@ def build_summary(units):
 
         bedrooms = unit.get("bedrooms")
         unit_type = unit.get("unit_type")
+        unit_type_text = str(unit_type).strip() if unit_type else ""
 
-        if bedrooms is not None:
+        # Use unit type first for values like:
+        # Villa 1b, TW, TH Middle, Duplex, Studio, Office
+        if unit_type_text:
+            category_type = "unit_type"
+            category_value = unit_type_text
+
+        # Only use bedrooms when unit type is missing
+        elif bedrooms is not None:
             category_type = "bedrooms"
             category_value = int(bedrooms)
-        elif unit_type:
-            category_type = "unit_type"
-            category_value = str(unit_type).strip()
+
         else:
             category_type = "unit_type"
             category_value = "Unit"
@@ -46,16 +52,13 @@ def build_summary(units):
             key=lambda unit: float(unit.get("price_total") or 0)
         )
 
-        starting_price = cheapest_unit.get("price_total")
-        starting_area = cheapest_unit.get("area_m2")
-
         summary_rows.append({
             "source_file": source_file,
             "project_name": project_name,
             "category_type": category_type,
             "category_value": category_value,
-            "starting_price": starting_price,
-            "starting_area_m2": starting_area,
+            "starting_price": cheapest_unit.get("price_total"),
+            "starting_area_m2": cheapest_unit.get("area_m2"),
         })
 
     return summary_rows
