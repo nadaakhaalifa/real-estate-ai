@@ -5,25 +5,31 @@ def build_summary(units):
     groups = defaultdict(list)
 
     for unit in units:
+        project_name = unit.get("project_name") or "Unknown Project"
+        source_file = unit.get("source_file") or "Unknown File"
+
         bedrooms = unit.get("bedrooms")
         unit_type = unit.get("unit_type")
         unit_type_text = str(unit_type).strip() if unit_type else ""
 
-        # Group all bedrooms together, ignoring project/zone/type
+        # Bedrooms should be grouped by number only:
+        # 1 Bedroom, 2 Bedrooms, 3 Bedrooms
         if bedrooms is not None:
             category_type = "bedrooms"
             category_value = int(bedrooms)
 
-        # Only use unit type when bedrooms is missing
+        # Villas / Offices / Town Houses / Studios, etc.
         elif unit_type_text:
             category_type = "unit_type"
-            category_value = unit_type_text.lower()
+            category_value = unit_type_text.title()
 
         else:
             category_type = "unit_type"
-            category_value = "unit"
+            category_value = "Unit"
 
         key = (
+            source_file,
+            project_name,
             category_type,
             category_value,
         )
@@ -32,7 +38,7 @@ def build_summary(units):
 
     summary_rows = []
 
-    for (category_type, category_value), group_units in groups.items():
+    for (source_file, project_name, category_type, category_value), group_units in groups.items():
         valid_price_units = [
             unit for unit in group_units
             if unit.get("price_total") is not None
@@ -47,17 +53,18 @@ def build_summary(units):
         )
 
         if category_type == "bedrooms":
-            label = f"All {category_value} Bedroom"
-            if category_value > 1:
-                label += "s"
+            if category_value == 1:
+                category_label = "1 Bedroom"
+            else:
+                category_label = f"{category_value} Bedrooms"
         else:
-            label = f"All {str(category_value).title()}s"
+            category_label = str(category_value)
 
         summary_rows.append({
-            "source_file": "All Files",
-            "project_name": "All Projects",
+            "source_file": source_file,
+            "project_name": project_name,
             "category_type": category_type,
-            "category_value": label,
+            "category_value": category_label,
             "starting_price": cheapest_unit.get("price_total"),
             "starting_area_m2": cheapest_unit.get("area_m2"),
         })
