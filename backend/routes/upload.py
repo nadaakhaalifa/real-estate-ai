@@ -35,8 +35,6 @@ def find_bedroom_source_columns(df):
         "bd",
         "category",
         "layout",
-        "unit type",
-        "type",
         "description",
         "unit name",
         "model",
@@ -147,9 +145,6 @@ def parse_single_file(file: UploadFile, display_name: str):
         for column in bedroom_source_columns:
             if column != bedrooms_column:
                 bedroom_sources.append(row[column])
-
-        if unit_type_column and unit_type_column not in bedroom_source_columns:
-            bedroom_sources.append(row[unit_type_column])
 
         for raw_bedroom in bedroom_sources:
             bedrooms = parse_bedrooms(raw_bedroom)

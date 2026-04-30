@@ -13,9 +13,7 @@ def build_summary(units):
         unit_type_text = str(unit_type).strip() if unit_type else ""
         unit_type_lower = unit_type_text.lower()
 
-        # Villas / Offices / Town Houses / Studios, etc.
-        # Check these BEFORE bedrooms because names like Villa B1 or Studio A2
-        # can wrongly be parsed as bedroom numbers.
+        # Unit types that should NOT become bedrooms
         if "villa" in unit_type_lower:
             category_type = "unit_type"
             category_value = "Villa"
@@ -28,9 +26,14 @@ def build_summary(units):
             category_type = "unit_type"
             category_value = "Office"
 
+        elif "apartment" in unit_type_lower:
+            category_type = "unit_type"
+            category_value = "Apartment"
+
         elif (
             "town house" in unit_type_lower
             or "townhouse" in unit_type_lower
+            or "twin house" in unit_type_lower
             or unit_type_lower.startswith("tw")
             or unit_type_lower.startswith("th")
         ):
@@ -45,13 +48,11 @@ def build_summary(units):
             category_type = "unit_type"
             category_value = "Penthouse"
 
-        # Bedrooms should be grouped by number only:
-        # 1 Bedroom, 2 Bedrooms, 3 Bedrooms
+        # Bedrooms should be used only when unit_type is not a clear type
         elif bedrooms is not None:
             category_type = "bedrooms"
             category_value = int(bedrooms)
 
-        # Other unit types
         elif unit_type_text:
             category_type = "unit_type"
             category_value = unit_type_text.title()
